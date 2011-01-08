@@ -21,6 +21,7 @@ trait Scheduling {
 
 
   def dep(e: Exp[Any]): List[Sym[Any]] = e match { // only used by GraphVizExport currently
+    case RichDef(used) => used.flatMap(t => syms(t))
     case Def(d: Product) => syms(d)
     case _ => Nil
   }
