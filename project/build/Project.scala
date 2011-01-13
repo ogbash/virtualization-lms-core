@@ -26,6 +26,7 @@ class Project(info: ProjectInfo) extends DefaultProject(info)
 
   override def testScalaSourcePath = "test-src"
   override def testResourcesPath = "test-resources"
+  override def compileOptions = super.compileOptions ++ Seq(Unchecked)
 
   // target directory layout (standard for now)
   

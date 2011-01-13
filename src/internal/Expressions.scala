@@ -15,7 +15,7 @@ trait Expressions {
     def Type : Manifest[T @uncheckedVariance] = manifest[T] //invariant position! but hey...
   }
 
-  case class Const[+T:Manifest](x: T) extends Exp[T]
+  case class Const[+T:Manifest](x: T) extends Exp[T] {var id: Int = 0}
 
   case class Sym[+T:Manifest](val id: Int) extends Exp[T] {
     var lastRead: Sym[T @uncheckedVariance] = this // TODO
