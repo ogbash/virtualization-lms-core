@@ -81,7 +81,7 @@ trait Scheduling {
   }
     
   
-  /** begin performance hotspot **/
+  /** begin performance hotspot */
   
   /*
   for each symbol s in sts, find all statements that depend on it.
@@ -141,7 +141,7 @@ trait Scheduling {
     }
     
     /*
-    optimization:
+    optimization: (removed)
       traverse syms by ascending id. if sym s1 is used by s2, do not evaluate further 
       uses of s2 because they are already there.
 
@@ -153,12 +153,11 @@ trait Scheduling {
       y have been tracked up to A, which includes all of B
     */
 
-    val seen = new HashSet[Sym[Any]]
+    //val seen = new HashSet[Sym[Any]]
     
     def getDepStuff(st: Sym[Any]) = {
       // could also precalculate uses, but computing all combinations eagerly is also expensive
-      def uses(s: Sym[Any]): List[Stm] = if (seen(s)) Nil else { 
-        seen += s
+      def uses(s: Sym[Any]): List[Stm] = { 
         lhsCache.getOrElse(s,Nil) ::: symsCache.getOrElse(s,Nil) filterNot (boundSymsCache.getOrElse(st, Nil) contains _)
       }
       GraphUtil.stronglyConnectedComponents[Stm](
@@ -169,10 +168,11 @@ trait Scheduling {
     
     /* 
     reference impl:
-    sts.flatMap(getDepStuff).distinct
     */
+    sts.flatMap(getDepStuff).distinct
     
-    sts.sortBy(_.id).flatMap(getDepStuff)
+    
+    //sts.sortBy(_.id).flatMap(getDepStuff)
   }
   
   /** end performance hotspot **/
