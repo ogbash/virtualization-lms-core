@@ -27,6 +27,8 @@ trait CLikeCodegen extends GenericCodegen {
     if(remap(tpe) != "void") stream.println(remap(tpe) + " " + sym + " = " + rhs + ";")
   }
 
+  def remapWithRef[A](m: Manifest[A]): String = remap(m) + addRef(m)
+
   override def remap[A](m: Manifest[A]) : String = {
     if (m.erasure == classOf[Variable[AnyVal]])
       remap(m.typeArguments.head)

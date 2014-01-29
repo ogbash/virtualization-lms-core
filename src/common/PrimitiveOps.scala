@@ -189,9 +189,14 @@ trait PrimitiveOps extends Variables with OverloadHack {
   /**
    * Float
    */
+  object Float {
+    def parseFloat(s: Rep[String])(implicit pos: SourceContext) = obj_float_parse_float(s)
+  }
+
   def infix_toInt(lhs: Rep[Float])(implicit o: Overloaded1, pos: SourceContext): Rep[Int] = float_to_int(lhs)
   def infix_toDouble(lhs: Rep[Float])(implicit o: Overloaded1, pos: SourceContext): Rep[Double] = float_to_double(lhs) 
   
+  def obj_float_parse_float(s: Rep[String])(implicit pos: SourceContext): Rep[Float]
   def float_plus(lhs: Rep[Float], rhs: Rep[Float])(implicit pos: SourceContext): Rep[Float]
   def float_minus(lhs: Rep[Float], rhs: Rep[Float])(implicit pos: SourceContext): Rep[Float]
   def float_times(lhs: Rep[Float], rhs: Rep[Float])(implicit pos: SourceContext): Rep[Float]
@@ -263,12 +268,17 @@ trait PrimitiveOps extends Variables with OverloadHack {
   /**
    * Long
    */
+  object Long {
+    def parseLong(s: Rep[String])(implicit pos: SourceContext) = obj_long_parse_long(s)
+  }
+
   def infix_&(lhs: Rep[Long], rhs: Rep[Long])(implicit o: Overloaded2, pos: SourceContext) = long_binaryand(lhs, rhs)
   def infix_|(lhs: Rep[Long], rhs: Rep[Long])(implicit o: Overloaded2, pos: SourceContext) = long_binaryor(lhs, rhs)
   def infix_<<(lhs: Rep[Long], rhs: Rep[Int])(implicit o: Overloaded2, pos: SourceContext) = long_shiftleft(lhs, rhs)
   def infix_>>>(lhs: Rep[Long], rhs: Rep[Int])(implicit o: Overloaded2, pos: SourceContext) = long_shiftright_unsigned(lhs, rhs)
   def infix_toInt(lhs: Rep[Long])(implicit o: Overloaded2, pos: SourceContext) = long_toint(lhs)
     
+  def obj_long_parse_long(s: Rep[String])(implicit pos: SourceContext): Rep[Long]
   def long_binaryand(lhs: Rep[Long], rhs: Rep[Long])(implicit pos: SourceContext): Rep[Long]
   def long_binaryor(lhs: Rep[Long], rhs: Rep[Long])(implicit pos: SourceContext): Rep[Long]
   def long_shiftleft(lhs: Rep[Long], rhs: Rep[Int])(implicit pos: SourceContext): Rep[Long]
@@ -276,7 +286,7 @@ trait PrimitiveOps extends Variables with OverloadHack {
   def long_toint(lhs: Rep[Long])(implicit pos: SourceContext): Rep[Int]
 }
 
-trait PrimitiveOpsExp extends PrimitiveOps with BaseExp {
+trait PrimitiveOpsExp extends PrimitiveOps with EffectExp {
   this: ImplicitOps =>
   
   /**
@@ -311,6 +321,7 @@ trait PrimitiveOpsExp extends PrimitiveOps with BaseExp {
   /**
    * Float
    */  
+  case class ObjFloatParseFloat(s: Exp[String]) extends Def[Float]
   case class FloatToInt(lhs: Exp[Float]) extends Def[Int]
   case class FloatToDouble(lhs: Exp[Float]) extends Def[Double]  
   case class FloatPlus(lhs: Exp[Float], rhs: Exp[Float]) extends Def[Float]
@@ -318,6 +329,7 @@ trait PrimitiveOpsExp extends PrimitiveOps with BaseExp {
   case class FloatTimes(lhs: Exp[Float], rhs: Exp[Float]) extends Def[Float]
   case class FloatDivide(lhs: Exp[Float], rhs: Exp[Float]) extends Def[Float]  
   
+  def obj_float_parse_float(s: Exp[String])(implicit pos: SourceContext) = ObjFloatParseFloat(s)
   def float_to_int(lhs: Exp[Float])(implicit pos: SourceContext) = FloatToInt(lhs)
   def float_to_double(lhs: Exp[Float])(implicit pos: SourceContext) = FloatToDouble(lhs)  
   def float_plus(lhs: Exp[Float], rhs: Exp[Float])(implicit pos: SourceContext) : Exp[Float] = FloatPlus(lhs,rhs)
@@ -392,12 +404,14 @@ trait PrimitiveOpsExp extends PrimitiveOps with BaseExp {
   /**
    * Long
    */
+  case class ObjLongParseLong(s: Exp[String]) extends Def[Long]
   case class LongBinaryOr(lhs: Exp[Long], rhs: Exp[Long]) extends Def[Long]
   case class LongBinaryAnd(lhs: Exp[Long], rhs: Exp[Long]) extends Def[Long]
   case class LongShiftLeft(lhs: Exp[Long], rhs: Exp[Int]) extends Def[Long]
   case class LongShiftRightUnsigned(lhs: Exp[Long], rhs: Exp[Int]) extends Def[Long]
   case class LongToInt(lhs: Exp[Long]) extends Def[Int]
 
+  def obj_long_parse_long(s: Exp[String])(implicit pos: SourceContext) = ObjLongParseLong(s)
   def long_binaryor(lhs: Exp[Long], rhs: Exp[Long])(implicit pos: SourceContext) = LongBinaryOr(lhs,rhs)
   def long_binaryand(lhs: Exp[Long], rhs: Exp[Long])(implicit pos: SourceContext) = LongBinaryAnd(lhs,rhs)  
   def long_shiftleft(lhs: Exp[Long], rhs: Exp[Int])(implicit pos: SourceContext) = LongShiftLeft(lhs,rhs)
@@ -418,7 +432,8 @@ trait PrimitiveOpsExp extends PrimitiveOps with BaseExp {
       case DoublePlus(x,y) => double_plus(f(x),f(y))
       case DoubleMinus(x,y) => double_minus(f(x),f(y))
       case DoubleTimes(x,y) => double_times(f(x),f(y))
-      case DoubleDivide(x,y) => double_divide(f(x),f(y))    
+      case DoubleDivide(x,y) => double_divide(f(x),f(y)) 
+      case ObjFloatParseFloat(x) => obj_float_parse_float(f(x))   
       case FloatToInt(x) => float_to_int(f(x))
       case FloatToDouble(x) => float_to_double(f(x))  
       case FloatPlus(x,y) => float_plus(f(x),f(y))
@@ -445,11 +460,56 @@ trait PrimitiveOpsExp extends PrimitiveOps with BaseExp {
       case IntShiftLeft(x,y) => int_leftshift(f(x),f(y))
       case IntShiftRightLogical(x,y) => int_rightshiftlogical(f(x),f(y))
       case IntShiftRightArith(x,y) => int_rightshiftarith(f(x),f(y))
+      case ObjLongParseLong(x) => obj_long_parse_long(f(x))
       case LongShiftLeft(x,y) => long_shiftleft(f(x),f(y))
       case LongBinaryOr(x,y) => long_binaryor(f(x),f(y))
       case LongBinaryAnd(x,y) => long_binaryand(f(x),f(y))
       case LongToInt(x) => long_toint(f(x))
       case LongShiftRightUnsigned(x,y) => long_shiftright_unsigned(f(x),f(y))
+
+      case Reflect(ObjDoubleParseDouble(x), u, es) => reflectMirrored(Reflect(ObjDoubleParseDouble(f(x)), mapOver(f,u), f(es)))(mtype(manifest[A]))
+      case Reflect(ObjDoublePositiveInfinity(), u, es) => reflectMirrored(Reflect(ObjDoublePositiveInfinity(), mapOver(f,u), f(es)))(mtype(manifest[A]))
+      case Reflect(ObjDoubleNegativeInfinity(), u, es) => reflectMirrored(Reflect(ObjDoubleNegativeInfinity(), mapOver(f,u), f(es)))(mtype(manifest[A]))
+      case Reflect(ObjDoubleMinValue(), u, es) => reflectMirrored(Reflect(ObjDoubleMinValue(), mapOver(f,u), f(es)))(mtype(manifest[A]))
+      case Reflect(ObjDoubleMaxValue(), u, es) => reflectMirrored(Reflect(ObjDoubleMaxValue(), mapOver(f,u), f(es)))(mtype(manifest[A]))
+      case Reflect(DoubleFloatValue(x), u, es) => reflectMirrored(Reflect(DoubleFloatValue(f(x)), mapOver(f,u), f(es)))(mtype(manifest[A]))
+      case Reflect(DoubleToInt(x), u, es) => reflectMirrored(Reflect(DoubleToInt(f(x)), mapOver(f,u), f(es)))(mtype(manifest[A]))
+      case Reflect(DoubleToFloat(x), u, es) => reflectMirrored(Reflect(DoubleToFloat(f(x)), mapOver(f,u), f(es)))(mtype(manifest[A]))
+      case Reflect(DoublePlus(x,y), u, es) => reflectMirrored(Reflect(DoublePlus(f(x),f(y)), mapOver(f,u), f(es)))(mtype(manifest[A]))
+      case Reflect(DoubleMinus(x,y), u, es) => reflectMirrored(Reflect(DoubleMinus(f(x),f(y)), mapOver(f,u), f(es)))(mtype(manifest[A]))
+      case Reflect(DoubleTimes(x,y), u, es) => reflectMirrored(Reflect(DoubleTimes(f(x),f(y)), mapOver(f,u), f(es)))(mtype(manifest[A]))
+      case Reflect(DoubleDivide(x,y), u, es) => reflectMirrored(Reflect(DoubleDivide(f(x),f(y)), mapOver(f,u), f(es)))(mtype(manifest[A]))
+      case Reflect(FloatToInt(x), u, es) => reflectMirrored(Reflect(FloatToInt(f(x)), mapOver(f,u), f(es)))(mtype(manifest[A]))
+      case Reflect(FloatToDouble(x), u, es) => reflectMirrored(Reflect(FloatToDouble(f(x)), mapOver(f,u), f(es)))(mtype(manifest[A]))
+      case Reflect(FloatPlus(x,y), u, es) => reflectMirrored(Reflect(FloatPlus(f(x),f(y)), mapOver(f,u), f(es)))(mtype(manifest[A]))
+      case Reflect(FloatMinus(x,y), u, es) => reflectMirrored(Reflect(FloatMinus(f(x),f(y)), mapOver(f,u), f(es)))(mtype(manifest[A]))
+      case Reflect(FloatTimes(x,y), u, es) => reflectMirrored(Reflect(FloatTimes(f(x),f(y)), mapOver(f,u), f(es)))(mtype(manifest[A]))
+      case Reflect(FloatDivide(x,y), u, es) => reflectMirrored(Reflect(FloatDivide(f(x),f(y)), mapOver(f,u), f(es)))(mtype(manifest[A]))
+      case Reflect(ObjIntegerParseInt(x), u, es) => reflectMirrored(Reflect(ObjIntegerParseInt(f(x)), mapOver(f,u), f(es)))(mtype(manifest[A]))
+      case Reflect(ObjIntMinValue(), u, es) => reflectMirrored(Reflect(ObjIntMinValue(), mapOver(f,u), f(es)))(mtype(manifest[A]))
+      case Reflect(ObjIntMaxValue(), u, es) => reflectMirrored(Reflect(ObjIntMaxValue(), mapOver(f,u), f(es)))(mtype(manifest[A]))
+      case Reflect(IntDoubleValue(x), u, es) => reflectMirrored(Reflect(IntDoubleValue(f(x)), mapOver(f,u), f(es)))(mtype(manifest[A]))
+      case Reflect(IntFloatValue(x), u, es) => reflectMirrored(Reflect(IntFloatValue(f(x)), mapOver(f,u), f(es)))(mtype(manifest[A]))
+      case Reflect(IntBitwiseNot(x), u, es) => reflectMirrored(Reflect(IntBitwiseNot(f(x)), mapOver(f,u), f(es)))(mtype(manifest[A]))
+      case Reflect(IntPlus(x,y), u, es) => reflectMirrored(Reflect(IntPlus(f(x),f(y)), mapOver(f,u), f(es)))(mtype(manifest[A]))
+      case Reflect(IntMinus(x,y), u, es) => reflectMirrored(Reflect(IntMinus(f(x),f(y)), mapOver(f,u), f(es)))(mtype(manifest[A]))
+      case Reflect(IntTimes(x,y), u, es) => reflectMirrored(Reflect(IntTimes(f(x),f(y)), mapOver(f,u), f(es)))(mtype(manifest[A]))
+      case Reflect(IntDivide(x,y), u, es) => reflectMirrored(Reflect(IntDivide(f(x),f(y)), mapOver(f,u), f(es)))(mtype(manifest[A]))
+      case Reflect(IntMod(x,y), u, es) => reflectMirrored(Reflect(IntMod(f(x),f(y)), mapOver(f,u), f(es)))(mtype(manifest[A]))
+      case Reflect(IntBinaryOr(x,y), u, es) => reflectMirrored(Reflect(IntBinaryOr(f(x),f(y)), mapOver(f,u), f(es)))(mtype(manifest[A]))
+      case Reflect(IntBinaryAnd(x,y), u, es) => reflectMirrored(Reflect(IntBinaryAnd(f(x),f(y)), mapOver(f,u), f(es)))(mtype(manifest[A]))
+      case Reflect(IntBinaryXor(x,y), u, es) => reflectMirrored(Reflect(IntBinaryXor(f(x),f(y)), mapOver(f,u), f(es)))(mtype(manifest[A]))
+      case Reflect(IntToLong(x), u, es) => reflectMirrored(Reflect(IntToLong(f(x)), mapOver(f,u), f(es)))(mtype(manifest[A]))
+      case Reflect(IntToFloat(x), u, es) => reflectMirrored(Reflect(IntToFloat(f(x)), mapOver(f,u), f(es)))(mtype(manifest[A]))
+      case Reflect(IntToDouble(x), u, es) => reflectMirrored(Reflect(IntToDouble(f(x)), mapOver(f,u), f(es)))(mtype(manifest[A]))    
+      case Reflect(IntShiftLeft(x,y), u, es) => reflectMirrored(Reflect(IntShiftLeft(f(x),f(y)), mapOver(f,u), f(es)))(mtype(manifest[A]))
+      case Reflect(IntShiftRightLogical(x,y), u, es) => reflectMirrored(Reflect(IntShiftRightLogical(f(x),f(y)), mapOver(f,u), f(es)))(mtype(manifest[A]))
+      case Reflect(IntShiftRightArith(x,y), u, es) => reflectMirrored(Reflect(IntShiftRightArith(f(x),f(y)), mapOver(f,u), f(es)))(mtype(manifest[A]))    
+      case Reflect(LongShiftLeft(x,y), u, es) => reflectMirrored(Reflect(LongShiftLeft(f(x),f(y)), mapOver(f,u), f(es)))(mtype(manifest[A]))
+      case Reflect(LongShiftRightUnsigned(x,y), u, es) => reflectMirrored(Reflect(LongShiftRightUnsigned(f(x),f(y)), mapOver(f,u), f(es)))(mtype(manifest[A]))
+      case Reflect(LongBinaryOr(x,y), u, es) => reflectMirrored(Reflect(LongBinaryOr(f(x),f(y)), mapOver(f,u), f(es)))(mtype(manifest[A]))
+      case Reflect(LongBinaryAnd(x,y), u, es) => reflectMirrored(Reflect(LongBinaryAnd(f(x),f(y)), mapOver(f,u), f(es)))(mtype(manifest[A]))    
+      case Reflect(LongToInt(x), u, es) => reflectMirrored(Reflect(LongToInt(f(x)), mapOver(f,u), f(es)))(mtype(manifest[A]))
       case _ => super.mirror(e,f)
     }
   }).asInstanceOf[Exp[A]]
@@ -457,20 +517,45 @@ trait PrimitiveOpsExp extends PrimitiveOps with BaseExp {
 
 trait PrimitiveOpsExpOpt extends PrimitiveOpsExp {
   override def int_plus(lhs: Exp[Int], rhs: Exp[Int])(implicit pos: SourceContext) : Exp[Int] = (lhs,rhs) match {
+    case (Const(a),Const(b)) => unit(a+b)
     case (Const(0),b) => b
     case (a,Const(0)) => a
     case _ => super.int_plus(lhs,rhs)
   }
   override def int_minus(lhs: Exp[Int], rhs: Exp[Int])(implicit pos: SourceContext) : Exp[Int] = (lhs,rhs) match {
+    case (Const(a),Const(b)) => unit(a-b)
     case (a,Const(0)) => a
+    case (Def(IntPlus(llhs,lrhs)), rhs) if lrhs.equals(rhs) => llhs
     case _ => super.int_minus(lhs,rhs)    
   }
   override def int_times(lhs: Exp[Int], rhs: Exp[Int])(implicit pos: SourceContext) : Exp[Int] = (lhs,rhs) match {
+    case (Const(a),Const(b)) => unit(a*b)
     case (Const(0),b) => Const(0)
     case (Const(1),b) => b
     case (a,Const(0)) => Const(0)
     case (a,Const(1)) => a
     case _ => super.int_times(lhs,rhs)    
+  }
+  override def int_to_float(lhs: Rep[Int])(implicit pos: SourceContext): Rep[Float] = lhs match {
+    case Const(x) => Const(x.toFloat)
+    case _ => super.int_to_float(lhs)
+  }
+
+  override def int_to_double(lhs: Rep[Int])(implicit pos: SourceContext): Rep[Double] = lhs match {
+    case Const(x) => Const(x.toDouble)
+    case _ => super.int_to_double(lhs)
+  }
+
+  override def float_to_double(lhs: Rep[Float])(implicit pos: SourceContext): Rep[Double] = lhs match {
+    case Const(x) => Const(x.toDouble)
+    case Def(IntToFloat(x)) => int_to_double(x)
+    case _ => super.float_to_double(lhs)
+  }
+  
+  override def double_to_int(lhs: Rep[Double])(implicit pos: SourceContext): Rep[Int] = lhs match {
+    case Const(x) => Const(x.toInt)
+    case Def(IntToDouble(x)) => x
+    case _ => super.double_to_int(lhs)
   }
 }
 
@@ -491,6 +576,7 @@ trait ScalaGenPrimitiveOps extends ScalaGenBase {
     case DoubleDivide(lhs,rhs) => emitValDef(sym, quote(lhs) + " / " + quote(rhs))    
     case DoubleToInt(lhs) => emitValDef(sym, quote(lhs) + ".toInt")
     case DoubleToFloat(lhs) => emitValDef(sym, quote(lhs) + ".toFloat")    
+    case ObjFloatParseFloat(s) => emitValDef(sym, "java.lang.Float.parseFloat(" + quote(s) + ")")
     case FloatToInt(lhs) => emitValDef(sym, quote(lhs) + ".toInt")
     case FloatToDouble(lhs) => emitValDef(sym, quote(lhs) + ".toDouble")        
     case FloatPlus(lhs,rhs) => emitValDef(sym, quote(lhs) + " + " + quote(rhs))
@@ -518,6 +604,7 @@ trait ScalaGenPrimitiveOps extends ScalaGenBase {
     case IntToLong(lhs) => emitValDef(sym, quote(lhs) + ".toLong")
     case IntToFloat(lhs) => emitValDef(sym, quote(lhs) + ".toFloat")
     case IntToDouble(lhs) => emitValDef(sym, quote(lhs) + ".toDouble")
+    case ObjLongParseLong(s) => emitValDef(sym, "java.lang.Long.parseLong(" + quote(s) + ")")
     case LongBinaryOr(lhs,rhs) => emitValDef(sym, quote(lhs) + " | " + quote(rhs))
     case LongBinaryAnd(lhs,rhs) => emitValDef(sym, quote(lhs) + " & " + quote(rhs))    
     case LongShiftLeft(lhs,rhs) => emitValDef(sym, quote(lhs) + " << " + quote(rhs))
