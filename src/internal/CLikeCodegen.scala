@@ -51,6 +51,10 @@ trait CLikeCodegen extends GenericCodegen {
     }
   }
 
+  // move to CCodegen?
+  def unwrapSharedPtr(tpe: String): String = if(tpe.contains("std::shared_ptr")) tpe.replaceAll("std::shared_ptr<","").replaceAll(">","") else tpe
+  def wrapSharedPtr(tpe: String): String = "std::shared_ptr<" + tpe + ">"
+
   def addRef[A](m: Manifest[A]): String = addRef(remap(m))
 
   def addRef(tpe: String): String = {

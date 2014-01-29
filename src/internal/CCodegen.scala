@@ -27,18 +27,24 @@ trait CCodegen extends CLikeCodegen with CppHostTransfer {
     }    
   }
 
-  private def deref[A](m: Manifest[A]): String = {
-    if (isPrimitiveType(m)) remap(m) + " "
-    else remap(m) + " * "
+  override def isPrimitiveType(tpe: String) : Boolean = {
+    tpe match {
+      case "string" => true
+      case _ => super.isPrimitiveType(tpe)
+    }
   }
+
+  //TODO: add a flag to switch between using *
+  override def addRef(tpe: String): String = " "
 
   override def emitValDef(sym: Sym[Any], rhs: String): Unit = {
     if (!isVoidType(sym.tp))
-      stream.println(deref(sym.tp) + quote(sym) + " = " + rhs + ";")
+      stream.println(remap(sym.tp) + addRef(sym.tp) + quote(sym) + " = " + rhs + ";")
   }
 
   override def emitVarDef(sym: Sym[Variable[Any]], rhs: String): Unit = {
-      stream.println(deref(sym.tp.typeArguments.head) + quote(sym) + " = " + rhs + ";")
+    val tp = sym.tp.typeArguments.head
+    stream.println(remap(tp) + addRef(tp) + quote(sym) + " = " + rhs + ";")
   }
   
   override def kernelInit(syms: List[Sym[Any]], vals: List[Sym[Any]], vars: List[Sym[Any]], resultIsVar: Boolean): Unit = {
@@ -55,16 +61,18 @@ trait CCodegen extends CLikeCodegen with CppHostTransfer {
     helperFuncStream = new PrintWriter(new FileWriter(buildDir + deviceTarget + "helperFuncs.cpp"))
     helperFuncStream.println("#include <jni.h>")
     helperFuncStream.println("#include \"" + deviceTarget + "helperFuncs.h\"")
+    helperFuncStream.println("std::map<int,int> *RefCnt = new std::map<int,int>();")
+    helperFuncStream.println("pthread_mutex_t RefCntLock = PTHREAD_MUTEX_INITIALIZER;")
 
     /* type aliases */
     typesStream = new PrintWriter(new FileWriter(buildDir + deviceTarget + "types.h"))
-    typesStream.println("#define string char")
 
     /* header file for kernels and helper functions */
     headerStream = new PrintWriter(new FileWriter(buildDir + deviceTarget + "helperFuncs.h"))
     headerStream.println("#include <stdio.h>")
     headerStream.println("#include <string.h>")
     headerStream.println("#include <stdlib.h>")
+    headerStream.println("#include <memory>")
     headerStream.println("#include <float.h>")
     headerStream.println("#include <jni.h>")
     headerStream.println("#include <assert.h>")
