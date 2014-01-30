@@ -55,14 +55,17 @@ trait CLikeCodegen extends GenericCodegen {
 
   // move to CCodegen?
   def unwrapSharedPtr(tpe: String): String = if(tpe.contains("std::shared_ptr")) tpe.replaceAll("std::shared_ptr<","").replaceAll(">","") else tpe
-  def wrapSharedPtr(tpe: String): String = "std::shared_ptr<" + tpe + ">"
+  def wrapSharedPtr(tpe: String): String = if(cppUseSharedPtr && !isPrimitiveType(tpe) && !isVoidType(tpe)) "std::shared_ptr<" + tpe + ">" else tpe
 
-  def addRef[A](m: Manifest[A]): String = addRef(remap(m))
+  // Only need to add * when shared pointer is not used
+  def addRef(): String = if (cppUseSharedPtr) " " else " *"
 
   def addRef(tpe: String): String = {
-    if (!isPrimitiveType(tpe) && !isVoidType(tpe)) " *"
+    if (!isPrimitiveType(tpe) && !isVoidType(tpe)) addRef()
     else " " 
   }
+
+  def addRef[A](m: Manifest[A]): String = addRef(remap(m))
 
   override def emitKernelHeader(syms: List[Sym[Any]], vals: List[Sym[Any]], vars: List[Sym[Any]], resultType: String, resultIsVar: Boolean, external: Boolean): Unit = {
 
@@ -71,20 +74,23 @@ trait CLikeCodegen extends GenericCodegen {
     def kernelSignature: String = {
       val out = new StringBuilder
       if(resultIsVar)
-        out.append(hostTarget + "Ref< " + resultType + addRef(resultType) + " > ")
+        out.append(wrapSharedPtr(hostTarget + "Ref" + unwrapSharedPtr(resultType)))
       else
         out.append(resultType)
+
+      // Add * for the return type
       if (!external) {
-        if(resultIsVar) out.append(" *")
+        if(resultIsVar) addRef()
         else out.append(addRef(resultType))
       }
+
       out.append(" kernel_" + syms.map(quote).mkString("") + "(")
-      out.append(vals.map(p=>remap(p.tp) + addRef(p.tp) + quote(p)).mkString(", "))
+      out.append(vals.map(p => remap(p.tp) + " " + addRef(p.tp) + quote(p)).mkString(", "))
       if (vals.length > 0 && vars.length > 0){
         out.append(", ")
       }
       if (vars.length > 0){
-        out.append(vars.map(v => hostTarget + "Ref< " + remap(v.tp) + addRef(v.tp) + " > *" + quote(v)).mkString(","))
+        out.append(vars.map(v => wrapSharedPtr(hostTarget + "Ref" + unwrapSharedPtr(remap(v.tp))) + addRef() + " " + quote(v)).mkString(","))
       }
       out.append(")")
       out.toString

@@ -34,9 +34,6 @@ trait CCodegen extends CLikeCodegen with CppHostTransfer {
     }
   }
 
-  //TODO: add a flag to switch between using *
-  override def addRef(tpe: String): String = " "
-
   override def emitValDef(sym: Sym[Any], rhs: String): Unit = {
     if (!isVoidType(sym.tp))
       stream.println(remapWithRef(sym.tp) + quote(sym) + " = " + rhs + ";")
@@ -124,7 +121,9 @@ trait CCodegen extends CLikeCodegen with CppHostTransfer {
 
   override def emitTransferFunctions() {
 
-    for (tp <- dsTypesList) {
+    //TODO: temporarily disable transfer functions for variables
+    //for (tp <- dsTypesList) {
+    for (tp <- dsTypesList if (tp.erasure != classOf[Variable[AnyVal]])) {
       try {
         // Emit input copy helper functions for object type inputs
         //TODO: For now just iterate over all possible hosts, but later we can pick one depending on the input target
