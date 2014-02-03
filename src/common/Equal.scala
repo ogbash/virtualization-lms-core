@@ -44,6 +44,7 @@ trait EqualExpBridge extends BaseExp  {
   case class Equal[A:Manifest,B:Manifest](a: Exp[A], b: Exp[B]) extends Def[Boolean]
   case class NotEqual[A:Manifest,B:Manifest](a: Exp[A], b: Exp[B]) extends Def[Boolean]
 
+  def equals_fwd[A:Manifest,B:Manifest](a: Rep[A], b: Rep[B])(implicit pos: SourceContext): Rep[Boolean] = equals(a,b)
   def equals[A:Manifest,B:Manifest](a: Rep[A], b: Rep[B])(implicit pos: SourceContext): Rep[Boolean] = Equal(a,b)
   def notequals[A:Manifest,B:Manifest](a: Rep[A], b: Rep[B])(implicit pos: SourceContext): Rep[Boolean] = NotEqual(a,b)
 
@@ -68,7 +69,7 @@ trait EqualExpBridgeOpt extends EqualExp {
     case (Const(a),Const(b)) => Const(a == b)
     case _ => super.equals(a,b)
   }
-  
+
   override def notequals[A:Manifest,B:Manifest](a: Rep[A], b: Rep[B])(implicit pos: SourceContext): Rep[Boolean] = if (a == b) Const(false) else (a,b) match {
     case (Const(a),Const(b)) => Const(a != b)
     case _ => super.notequals(a,b)
@@ -81,7 +82,7 @@ trait EqualExpOpt extends EqualExp with EqualExpBridgeOpt
 trait ScalaGenEqual extends ScalaGenBase {
   val IR: EqualExp
   import IR._
-  
+
   override def emitNode(sym: Sym[Any], rhs: Def[Any]) = rhs match {
     case Equal(a,b) =>  emitValDef(sym, quote(a) + " == " + quote(b))
     case NotEqual(a,b) =>  emitValDef(sym, quote(a) + " != " + quote(b))
@@ -90,12 +91,12 @@ trait ScalaGenEqual extends ScalaGenBase {
 }
 
 trait CLikeGenEqual extends CLikeGenBase {
-  val IR: EqualExp
+  val IR: EqualExpBridge
   import IR._
 
   override def emitNode(sym: Sym[Any], rhs: Def[Any]) = {
       rhs match {
-        case Equal(a,b) => 
+        case Equal(a,b) =>
           emitValDef(sym, quote(a) + " == " + quote(b))
         case NotEqual(a,b) =>
           emitValDef(sym, quote(a) + " != " + quote(b))
@@ -107,16 +108,16 @@ trait CLikeGenEqual extends CLikeGenBase {
 trait CudaGenEqual extends CudaGenBase with CLikeGenEqual
 trait OpenCLGenEqual extends OpenCLGenBase with CLikeGenEqual
 trait CGenEqual extends CGenBase with CLikeGenEqual {
-  val IR: EqualExp
+  val IR: EqualExpBridge
   import IR._
 
   override def emitNode(sym: Sym[Any], rhs: Def[Any]) = {
     rhs match {
-      case Equal(a,b) if(remap(a.tp) == "string" && remap(b.tp) == "string") => 
+      case Equal(a,b) if(remap(a.tp) == "string" && remap(b.tp) == "string") =>
         emitValDef(sym, "strcmp(" + quote(a) + "," + quote(b) + ") == 0")
       case NotEqual(a,b) if(remap(a.tp) == "string" && remap(b.tp) == "string") =>
         emitValDef(sym, "strcmp(" + quote(a) + "," + quote(b) + ") == 0")
       case _ => super.emitNode(sym, rhs)
     }
-  } 
+  }
 }
