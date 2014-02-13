@@ -1,0 +1,50 @@
+-- full graph
+TP(Sym(2),SimpleLoop(Const(100),Sym(1),ArrayElem(Block(Sym(1)))))
+TP(Sym(3),ArrayLength(Sym(2)))
+TP(Sym(5),ArrayIndex(Sym(2),Sym(4)))
+TP(Sym(6),OrderingGT(Sym(5),Const(50)))
+TP(Sym(7),SimpleLoop(Sym(3),Sym(4),ArrayIfElem(Sym(6),Block(Sym(5)))))
+TP(Sym(8),ArrayLength(Sym(7)))
+TP(Sym(9),Reflect(Print(Sym(8)),Summary(true,true,false,false,false,List(),List(),List(),List()),List()))
+TP(Sym(10),Reify(Sym(9),Summary(true,true,false,false,false,List(),List(),List(),List()),List(Sym(9))))
+-- before transformation
+var x2 = new Array[Int](100)
+for (x1 <- 0 until 100) {
+x2(x1) = x1
+}
+val x3 = x2.length
+var x7 = new ArrayBuilder[Int]
+for (x4 <- 0 until x3) {
+val x5 = x2.apply(x4)
+val x6 = x5 > 50
+if (x6) x7 += x5
+}
+val x8 = x7.length
+val x9 = println(x8)
+MyTransformer sees: TP(Sym(2),SimpleLoop(Const(100),Sym(1),ArrayElem(Block(Sym(1)))))
+MyTransformer sees: TP(Sym(3),ArrayLength(Sym(2)))
+MyTransformer sees: TP(Sym(7),SimpleLoop(Sym(3),Sym(4),ArrayIfElem(Sym(6),Block(Sym(5)))))
+MyTransformer sees: TP(Sym(5),ArrayIndex(Sym(2),Sym(4)))
+MyTransformer sees: TP(Sym(8),ArrayLength(Sym(7)))
+MyTransformer sees: TP(Sym(9),Reflect(Print(Sym(8)),Summary(true,true,false,false,false,List(),List(),List(),List()),List()))
+MyTransformer sees: TP(Sym(10),Reify(Sym(9),Summary(true,true,false,false,false,List(),List(),List(),List()),List(Sym(9))))
+-- after transformation
+var x2 = new Array[Int](100)
+for (x1 <- 0 until 100) {
+x2(x1) = x1
+}
+var x12 = new Array[Int](100)
+for (x11 <- 0 until 100) {
+x12(x11) = x11
+}
+val x13 = x12.length
+var x15 = new ArrayBuilder[Int]
+for (x4 <- 0 until x13) {
+val x5 = x2.apply(x4)
+val x6 = x5 > 50
+val x14 = x12.apply(x4)
+if (x6) x15 += x14
+}
+val x16 = x15.length
+val x17 = println(x16)
+-- done
