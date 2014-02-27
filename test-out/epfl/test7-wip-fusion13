@@ -1,0 +1,65 @@
+-- full graph
+TP(Sym(2),NumericPlus(Sym(1),Const(1)))
+TP(Sym(3),SimpleLoop(Const(100),Sym(1),ArrayElem(Block(Sym(2)))))
+TP(Sym(5),NumericPlus(Sym(4),Const(2)))
+TP(Sym(6),SimpleLoop(Const(100),Sym(4),ArrayElem(Block(Sym(5)))))
+TP(Sym(7),ArrayLength(Sym(3)))
+TP(Sym(8),Reflect(Print(Sym(7)),Summary(true,true,false,false,false,List(),List(),List(),List()),List()))
+TP(Sym(9),ArrayLength(Sym(6)))
+TP(Sym(10),Reflect(Print(Sym(9)),Summary(true,true,false,false,false,List(),List(),List(),List()),List(Sym(8))))
+TP(Sym(11),Reify(Sym(10),Summary(true,true,false,false,false,List(),List(),List(),List()),List(Sym(8), Sym(10))))
+
+-- before transformation
+var x3 = new Array[Int](100)
+for (x1 <- 0 until 100) {
+val x2 = x1 + 1
+x3(x1) = x2
+}
+val x7 = x3.length
+val x8 = println(x7)
+var x6 = new Array[Int](100)
+for (x4 <- 0 until 100) {
+val x5 = x4 + 2
+x6(x4) = x5
+}
+val x9 = x6.length
+val x10 = println(x9)
+
+-- vertical transformation
+
+-- after vertical transformation
+var x3 = new Array[Int](100)
+for (x1 <- 0 until 100) {
+val x2 = x1 + 1
+x3(x1) = x2
+}
+val x7 = x3.length
+val x12 = println(x7)
+var x6 = new Array[Int](100)
+for (x4 <- 0 until 100) {
+val x5 = x4 + 2
+x6(x4) = x5
+}
+val x9 = x6.length
+val x13 = println(x9)
+
+-- horizontal transformation
+(HFT)  Recording new loop (prev. Sym(3)): (Const(100),(Sym(3),Sym(1),None))
+(HFT)  Loop Sym(6) fused with Sym(3), common index: Sym(1)
+
+-- after horizontal transformation
+var x3 = new Array[Int](100)
+for (x1 <- 0 until 100) {
+val x2 = x1 + 1
+x3(x1) = x2
+}
+val x7 = x3.length
+val x12 = println(x7)
+var x16 = new Array[Int](100)
+for (x1 <- 0 until 100) {
+val x15 = x1 + 2
+x16(x1) = x15
+}
+val x17 = x16.length
+val x18 = println(x17)
+-- done

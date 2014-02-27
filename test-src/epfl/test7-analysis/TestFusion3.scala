@@ -61,9 +61,36 @@ trait ArrayLoopFusionExtractors extends ArrayLoopsExp with LoopFusionExtractors 
   //   case _ => super.applyAddCondition(e,c)
   // }
 
+  // Loops
+  // override def mirror[A:Manifest](e: Def[A], f: Transformer)(implicit pos: SourceContext): Exp[A] = (e match {
+  //   case SimpleLoop(s,v,body: Def[A]) => simpleLoop(f(s),f(v).asInstanceOf[Sym[Int]],mirrorFatDef(body,f))
+  //   case _ => super.mirror(e,f)
+  // }).asInstanceOf[Exp[A]] // why??
+
+  // Arrays
+  // override def mirror[A:Manifest](e: Def[A], f: Transformer)(implicit pos: SourceContext): Exp[A] = (e match {
+  //   case SimpleLoop(s,i, ArrayElem(y)) if f.hasContext => 
+  //     array(f(s)) { j => f.asInstanceOf[AbstractSubstTransformer{val IR:ArrayLoopsExp.this.type}].withSubstScope(i -> j) { f.reflectBlock(y) } }
+  //   case ArrayIndex(a,i) => infix_at(f(a), f(i))(mtype(manifest[A]))
+  //   case ArrayLength(a) => infix_length(f(a))(mtype(manifest[A]))
+  //   case _ => super.mirror(e,f)
+  // }).asInstanceOf[Exp[A]]
+
+  // def array[T:Manifest](shape: Rep[Int])(f: Rep[Int] => Rep[T]): Rep[Array[T]] = {
+  //   val x = fresh[Int]
+  //   val y = reifyEffects(f(x))
+  //   simpleLoop(shape, x, ArrayElem(y))
+  // }
+
+  //  override def mirror[A:Manifest](e: Def[A], f: Transformer)(implicit pos: SourceContext): Exp[A] = (e match {
+  //   case SimpleLoop(s,i, ArrayElem(y)) if f.hasContext => 
+  //     array(f(s)) { j => f.asInstanceOf[internal.AbstractSubstTransformer{val IR:ArrayLoopFusionExtractors.this.type}].subst += (i -> j); f.reflectBlock(y) }
+  //   case _ => super.mirror(e,f)
+  // }).asInstanceOf[Exp[A]]
+
   override def mirror[A:Manifest](e: Def[A], f: Transformer)(implicit pos: SourceContext): Exp[A] = (e match {
-    case SimpleLoop(s,i, ArrayElem(y)) if f.hasContext => 
-      array(f(s)) { j => f.asInstanceOf[internal.AbstractSubstTransformer{val IR:ArrayLoopFusionExtractors.this.type}].subst += (i -> j); f.reflectBlock(y) }
+    case SimpleLoop(s, i, ArrayElem(y)) => 
+      simpleLoop(f(s), f(i).asInstanceOf[Sym[Int]], ArrayElem(reifyEffects(f.reflectBlock(y))))
     case _ => super.mirror(e,f)
   }).asInstanceOf[Exp[A]]
 
@@ -83,7 +110,7 @@ trait Impl extends MyFusionProg with NumericOpsExp with ArrayLoopsFatExp with Pr
 trait Codegen extends ScalaGenNumericOps with ScalaGenPrint with ScalaGenOrderingOps 
   with ScalaGenBooleanOps with ScalaGenArrayLoopsFat { val IR: Impl }
 
-trait Runner {
+trait Runner extends internal.ScalaCompile {
   val p: Impl
   def run() = {
     val x = p.fresh[Int]
@@ -124,10 +151,36 @@ trait Runner {
       }
 
       println("-- done")
+
+      // TODO how to run the program? have block, not f: Exp[A] => Exp[B]
+      // val test = compile({x: Int => h})
+      test(42)
     } catch {
       case ex =>
       println("error: " + ex)
     }
+  }
+}
+
+/**
+ * Skip statements that don't have symbols which need substitution, unless they contain
+ * blocks (need to recurse into blocks).
+ */
+trait PreservingForwardTransformer extends ForwardTransformer {
+  import IR._
+  override def transformStm(stm: Stm): Exp[Any] = stm match {
+    case TP(sym,rhs) => 
+      // Implement optimization suggested in ForwardTransformer:
+      // optimization from MirrorRetainBlockTransformer in TestMiscTransform
+      // we want to skip those statements that don't have symbols that need substitution
+      // however we need to recurse into any blocks
+      if (!syms(rhs).exists(subst contains _) && blocks(rhs).isEmpty) {
+        if (!globalDefs.contains(stm)) 
+          reflectSubGraph(List(stm))
+        sym
+      } else {
+        self_mirror(sym, rhs)
+      }
   }
 }
 
@@ -265,83 +318,64 @@ trait VerticalFusionTransformer extends ForwardTransformer /*with BaseLoopsTrave
   }
 }
 
-trait HorizontalFusionTransformer extends ForwardTransformer /*with BaseLoopsTraversalFat*/ { 
+trait HorizontalFusionTransformer extends PreservingForwardTransformer /*with BaseLoopsTraversalFat*/ { 
   val IR: Impl with ArrayLoopFusionExtractors
   import IR.{__newVar => _, _}
 
-  // Why can't I initialize the SubstTransformer here?
-  var substTransformer: Option[SubstTransformer] = None
-  // map from shape to (loop symbol, index symbol, dependent loop symbols)
-  // Dependent loop symbols are only set when this loop is first retrieved, not
-  // when storing each loop, because most probably won't be horizontally fused.
-  // Dependent loops cannot be fused.
-  val seenLoops = new scala.collection.mutable.HashMap[Exp[Any], (Sym[Any], Sym[Int], Option[List[Sym[Any]]])]
+  // TODO List per shape because of different deps
+  var seenLoops = new scala.collection.mutable.HashMap[Exp[Any], (Sym[Any], Sym[Int], Option[List[Sym[Any]]])]
 
-  override def transformBlock[A:Manifest](block: Block[A]): Block[A] = {
-    substTransformer = Some(new SubstTransformer)
-    printdbg("(HFT)  transformBlock resets substitution of HorizontalFusionTransformer")
-    super.transformBlock(block)
+  // Each scope has a fresh map, don't want to fuse loops from different levels or scopes
+  override def reflectBlock[A](block: Block[A]): Exp[A] = {
+    val save = seenLoops
+    seenLoops = new scala.collection.mutable.HashMap[Exp[Any], (Sym[Any], Sym[Int], Option[List[Sym[Any]]])]
+    val res = super.reflectBlock(block)
+    seenLoops = save
+    res
   }
 
-  override def transformStm(stm: Stm): Exp[Any] = stm match {
-    case TP(loopSym, SimpleLoop(shape, indexSym, _)) =>
-      seenLoops.get(shape) match {
-        case Some((otherLoopSym, newIndex, d)) => 
-          val deps = d.getOrElse({ 
-            val ds = getFatDependentStuff(initialDefs)(List(otherLoopSym))
-                .collect({ case TP(sym, SimpleLoop(_, _, _)) => sym })
-            printlog("(HFT)  Updating loop: " + (shape -> (otherLoopSym, newIndex, Some(ds))))
-            seenLoops += (shape -> (otherLoopSym, newIndex, Some(ds)))
-            ds
-          })
+  override def transformStm(stm: Stm): Exp[Any] = {
+    stm match {
+      case TP(loopSym, SimpleLoop(shape, indexSym, _)) =>
+        seenLoops.get(shape) match {
+          case Some((otherLoopSym, newIndex, d)) => 
+            val deps = d.getOrElse({ 
+              val ds = getFatDependentStuff(initialDefs)(List(otherLoopSym))
+                  .collect({ case TP(sym, SimpleLoop(_, _, _)) => sym })
+              seenLoops += (shape -> (otherLoopSym, newIndex, Some(ds)))
+              ds
+            })
 
-          if (deps.contains(loopSym)) { 
-            printlog("(HFT)  Loop " + loopSym + " not fused with " + otherLoopSym + " because it depends on it")
-            default(stm)
-          } else {
-            printlog("(HFT)  Loop " + loopSym + " fused with " + otherLoopSym + ", common index: " + newIndex)
-            transformLoop(stm, indexSym, newIndex)          
-          }
-        case None => 
-          seenLoops += (shape -> (loopSym, indexSym, None))
-          printlog("(HFT)  Recording loop: " + (shape -> (loopSym, indexSym, None)))
-          default(stm)
-      }
-    case _ => default(stm)
-  }
-
-  def transformLoop(stm: Stm, indexSym: Sym[Int], newIndex: Sym[Int]): Exp[Any] = {
-    substTransformer.get.subst += (indexSym -> newIndex)
-    val reindexedStms = getDependentStuff(indexSym) map(mirrorAddGet(_))
-    printdbg("(HFT)  reindexed loop statements: " + reindexedStms)
-    val mirr = mirrorAddGet(stm)
-    printdbg("(HFT)  reindexed loop: " + mirr)
-    mirr match { case TP(sym, _) => sym }
-  }
-
-  def default(stm: Stm, transf: SubstTransformer = substTransformer.get): Sym[Any] = {
-      val mirr = mirrorAddGet(stm)
-      printdbg("(HFT)  simply mirrored statement: " + mirr)
-      mirr match { case TP(sym, _) => sym }
-  }
-
-  /** Mirrors the given statement with the given transformer, adds the new symbol
-      to its substitution and returns the definition. */
-  def mirrorAddGet(stm: Stm, transf: SubstTransformer = substTransformer.get): Stm = stm match {
-    case TP(s, d) => mirror(d, transf)(mtype(s.tp), mpos(s.pos)) match {
-      case newSym@Sym(_) => 
-        transf.subst += (s -> newSym)
-        findDefinition(newSym).get
+            if (deps.contains(loopSym)) { 
+              printlog("(HFT)  Loop " + loopSym + " not fused with " + otherLoopSym + " because it depends on it")
+              super.transformStm(stm)
+            } else {
+              printlog("(HFT)  Loop " + loopSym + " fused with " + otherLoopSym + ", common index: " + newIndex)
+              subst += (indexSym -> newIndex)
+              super.transformStm(stm)
+            }
+          case None => 
+            super.transformStm(stm) match {
+              case newSym@Sym(_) => 
+                findDefinition(newSym).get match {
+                  case TP(newLoopSym, SimpleLoop(_, indexSym, _)) =>
+                    seenLoops += (shape -> (newLoopSym, indexSym, None))
+                    printlog("(HFT)  Recording new loop (prev. " + loopSym + "): " + (shape -> (newLoopSym, indexSym, None)))
+                    newSym
+                }
+            }
+        }
+      case _ => super.transformStm(stm)
     }
+    
   }
 }
-
 
 class TestFusion3 extends FileDiffSuite {
 
   val prefix = "test-out/epfl/test7-wip-"
 
-  def testFusionTransform1 = withOutFileChecked(prefix+"fusion1") {
+  def testFusionTransform01 = withOutFileChecked(prefix+"fusion01") {
     trait Prog extends MyFusionProg with LiftNumeric with OrderingOps with BooleanOps with Impl {
       def test(x: Rep[Int]) = {        
         // range is producer, odds is consumer, range fused into odds
@@ -361,7 +395,7 @@ class TestFusion3 extends FileDiffSuite {
     new Prog with Impl
   }
 
-  def testFusionTransform2 = withOutFileChecked(prefix+"fusion2") {
+  def testFusionTransform02 = withOutFileChecked(prefix+"fusion02") {
     trait Prog extends MyFusionProg with LiftNumeric with OrderingOps with BooleanOps with Impl {
       def test(x: Rep[Int]) = {        
         // range is producer, odds is consumer, range fused into odds
@@ -382,7 +416,7 @@ class TestFusion3 extends FileDiffSuite {
     new Prog with Impl
   }
 
-  def testFusionTransform3 = withOutFileChecked(prefix+"fusion3") {
+  def testFusionTransform03 = withOutFileChecked(prefix+"fusion03") {
     trait Prog extends MyFusionProg with LiftNumeric with OrderingOps with BooleanOps with Impl {
       def test(x: Rep[Int]) = {        
         // not consumer, TODO replace shape so range is dce'd
@@ -398,7 +432,7 @@ class TestFusion3 extends FileDiffSuite {
     new Prog with Impl
   }
 
-  def testFusionTransform4 = withOutFileChecked(prefix+"fusion4") {
+  def testFusionTransform04 = withOutFileChecked(prefix+"fusion04") {
     trait Prog extends MyFusionProg with LiftNumeric with OrderingOps with BooleanOps with Impl {
       def test(x: Rep[Int]) = {        
         // constant moved out, so is consumer
@@ -415,7 +449,7 @@ class TestFusion3 extends FileDiffSuite {
     new Prog with Impl
   }
 
-  def testFusionTransform5 = withOutFileChecked(prefix+"fusion5") {
+  def testFusionTransform05 = withOutFileChecked(prefix+"fusion05") {
     trait Prog extends MyFusionProg with LiftNumeric with OrderingOps with BooleanOps with Impl {
       def test(x: Rep[Int]) = {        
         // not consumer
@@ -431,7 +465,7 @@ class TestFusion3 extends FileDiffSuite {
     new Prog with Impl
   }
 
-  def testFusionTransform6 = withOutFileChecked(prefix+"fusion6") {
+  def testFusionTransform06 = withOutFileChecked(prefix+"fusion06") {
     trait Prog extends MyFusionProg with LiftNumeric with OrderingOps with BooleanOps with Impl {
       def test(x: Rep[Int]) = {        
         // range is producer, arr1 is consumer and arr2 is also consumer of range
@@ -451,7 +485,7 @@ class TestFusion3 extends FileDiffSuite {
     new Prog with Impl
   }
 
-  def testFusionTransform7 = withOutFileChecked(prefix+"fusion7") {
+  def testFusionTransform07 = withOutFileChecked(prefix+"fusion07") {
     trait Prog extends MyFusionProg with LiftNumeric with OrderingOps with BooleanOps with Impl {
       def test(x: Rep[Int]) = {        
         val range = array(100) { i => 
@@ -469,7 +503,7 @@ class TestFusion3 extends FileDiffSuite {
     new Prog with Impl
   }
 
-  def testFusionTransform8 = withOutFileChecked(prefix+"fusion8") {
+  def testFusionTransform08 = withOutFileChecked(prefix+"fusion08") {
     trait Prog extends MyFusionProg with LiftNumeric with OrderingOps with BooleanOps with Impl {
       def test(x: Rep[Int]) = {        
         val range = array(100) { i => 
@@ -488,4 +522,105 @@ class TestFusion3 extends FileDiffSuite {
     }
     new Prog with Impl
   }
+
+  def testFusionTransform09 = withOutFileChecked(prefix+"fusion09") {
+    trait Prog extends MyFusionProg with LiftNumeric with OrderingOps with BooleanOps with Impl {
+      def test(x: Rep[Int]) = {     
+        // range, arrI & arrJ will be fused. TODO think about fusion in nested loops... what if
+        // range was expensive to compute? @nofuse?
+        val range = array(100) { i => 
+          i + 1
+        }
+        val arr1 = array(100) { i =>
+          val x = i * 4
+          val arrI = array(range.length) { ii =>
+            range.at(ii) * 5 + i
+          }
+          val arrJ = array(arrI.length) { i =>
+            arrI.at(i) * 6
+          }
+
+          x * arrJ.at(0)
+        }
+        print(arr1.length)
+      }
+    }
+    new Prog with Impl
+  }
+
+  def testFusionTransform10 = withOutFileChecked(prefix+"fusion10") {
+    trait Prog extends MyFusionProg with LiftNumeric with OrderingOps with BooleanOps with Impl {
+      def test(x: Rep[Int]) = {     
+        // TODO think more about resetting substitution in transformBlock, seems to work fine here
+        val range = array(100) { i => 
+          i + 1
+        }
+        val arr1 = array(90) { i =>
+          val arrI = array(80) { ii =>
+            ii + i
+          }
+          arrI.at(0)
+        }
+        val arr2 = array(100) { i =>
+          i + 2
+        }
+
+        print(range.length)
+        print(arr1.length)
+        print(arr2.length)
+      }
+    }
+    new Prog with Impl
+  }
+
+  def testFusionTransform11 = withOutFileChecked(prefix+"fusion11") {
+    trait Prog extends MyFusionProg with LiftNumeric with OrderingOps with BooleanOps with Impl {
+      def test(x: Rep[Int]) = {     
+        val arr1 = array(90) { i =>
+          val arrI = array(100) { ii =>
+            ii + i
+          }
+          arrI.at(0)
+        }
+        val arr2 = array(100) { i =>
+          i + 2
+        }
+        print(arr1.length)
+        print(arr2.length)
+      }
+    }
+    new Prog with Impl
+  }
+
+  def testFusionTransform12 = withOutFileChecked(prefix+"fusion12") {
+    trait Prog extends MyFusionProg with LiftNumeric with OrderingOps with BooleanOps with Impl {
+      def test(x: Rep[Int]) = {     
+        val arr1 = array(100) { i =>
+          val arrI = array(80) { ii =>
+            ii + i
+          }
+          val arrJ = array(80) { ii =>
+            ii * i
+          }
+          i * arrI.at(0) * arrJ.at(0)
+        }
+        print(arr1.length)
+      }
+    }
+    new Prog with Impl
+  }
+
+  def testFusionTransform13 = withOutFileChecked(prefix+"fusion13") {
+    trait Prog extends MyFusionProg with LiftNumeric with OrderingOps with BooleanOps with Impl {
+      def test(x: Rep[Int]) = {        
+        // not consumer
+        val range = array(100) { i => i + 1 }
+        val arr1 = array(100) { i => i + 2 }
+        print(range.length)
+        print(arr1.length)
+      }
+    }
+    new Prog with Impl
+  }
+
 }

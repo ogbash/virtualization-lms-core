@@ -1,0 +1,57 @@
+-- full graph
+TP(Sym(2),NumericPlus(Sym(1),Const(1)))
+TP(Sym(3),SimpleLoop(Const(100),Sym(1),ArrayElem(Block(Sym(2)))))
+TP(Sym(4),ArrayLength(Sym(3)))
+TP(Sym(6),ArrayIndex(Sym(3),Sym(5)))
+TP(Sym(7),NumericTimes(Sym(6),Const(4)))
+TP(Sym(8),NumericTimes(Sym(7),Const(2)))
+TP(Sym(9),SimpleLoop(Sym(4),Sym(5),ArrayElem(Block(Sym(8)))))
+TP(Sym(11),NumericPlus(Sym(10),Sym(4)))
+TP(Sym(12),SimpleLoop(Const(100),Sym(10),ArrayElem(Block(Sym(11)))))
+TP(Sym(13),Reflect(Print(Sym(4)),Summary(true,true,false,false,false,List(),List(),List(),List()),List()))
+TP(Sym(14),ArrayLength(Sym(9)))
+TP(Sym(15),Reflect(Print(Sym(14)),Summary(true,true,false,false,false,List(),List(),List(),List()),List(Sym(13))))
+TP(Sym(16),ArrayLength(Sym(12)))
+TP(Sym(17),Reflect(Print(Sym(16)),Summary(true,true,false,false,false,List(),List(),List(),List()),List(Sym(13), Sym(15))))
+TP(Sym(18),Reify(Sym(17),Summary(true,true,false,false,false,List(),List(),List(),List()),List(Sym(13), Sym(15), Sym(17))))
+
+-- before transformation
+var x3 = new Array[Int](100)
+for (x1 <- 0 until 100) {
+val x2 = x1 + 1
+x3(x1) = x2
+}
+val x4 = x3.length
+val x13 = println(x4)
+var x9 = new Array[Int](x4)
+for (x5 <- 0 until x4) {
+val x6 = x3.apply(x5)
+val x7 = x6 * 4
+val x8 = x7 * 2
+x9(x5) = x8
+}
+val x14 = x9.length
+val x15 = println(x14)
+var x12 = new Array[Int](100)
+for (x10 <- 0 until 100) {
+val x11 = x10 + x4
+x12(x10) = x11
+}
+val x16 = x12.length
+val x17 = println(x16)
+
+-- vertical transformation
+
+(VFT)  starting loop fusion of producer:
+      TP(Sym(3),SimpleLoop(Const(100),Sym(1),ArrayElem(Block(Sym(2)))))
+(VFT)  into consumer:
+      TP(Sym(24),SimpleLoop(Sym(4),Sym(20),ArrayElem(Block(Sym(23)))))
+(VFT)  original consumer:
+      TP(Sym(9),SimpleLoop(Sym(4),Sym(5),ArrayElem(Block(Sym(8)))))
+(VFT)  original producerStms:
+      TP(Sym(2),NumericPlus(Sym(1),Const(1)))
+
+(VFT)  reindexed producerStms (prodIndex: Sym(1) -> consumerIndex: Sym(20)):
+      TP(Sym(25),NumericPlus(Sym(20),Const(1)))
+
+error: java.lang.RuntimeException: reflectBlock not supported by context-free transformers

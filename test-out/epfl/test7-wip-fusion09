@@ -1,0 +1,357 @@
+-- full graph
+TP(Sym(2),NumericPlus(Sym(1),Const(1)))
+TP(Sym(3),SimpleLoop(Const(100),Sym(1),ArrayElem(Block(Sym(2)))))
+TP(Sym(5),NumericTimes(Sym(4),Const(4)))
+TP(Sym(6),ArrayLength(Sym(3)))
+TP(Sym(8),ArrayIndex(Sym(3),Sym(7)))
+TP(Sym(9),NumericTimes(Sym(8),Const(5)))
+TP(Sym(10),NumericPlus(Sym(9),Sym(4)))
+TP(Sym(11),SimpleLoop(Sym(6),Sym(7),ArrayElem(Block(Sym(10)))))
+TP(Sym(12),ArrayLength(Sym(11)))
+TP(Sym(14),ArrayIndex(Sym(11),Sym(13)))
+TP(Sym(15),NumericTimes(Sym(14),Const(6)))
+TP(Sym(16),SimpleLoop(Sym(12),Sym(13),ArrayElem(Block(Sym(15)))))
+TP(Sym(17),ArrayIndex(Sym(16),Const(0)))
+TP(Sym(18),NumericTimes(Sym(5),Sym(17)))
+TP(Sym(19),SimpleLoop(Const(100),Sym(4),ArrayElem(Block(Sym(18)))))
+TP(Sym(20),ArrayLength(Sym(19)))
+TP(Sym(21),Reflect(Print(Sym(20)),Summary(true,true,false,false,false,List(),List(),List(),List()),List()))
+TP(Sym(22),Reify(Sym(21),Summary(true,true,false,false,false,List(),List(),List(),List()),List(Sym(21))))
+
+-- before transformation
+var x3 = new Array[Int](100)
+for (x1 <- 0 until 100) {
+val x2 = x1 + 1
+x3(x1) = x2
+}
+val x6 = x3.length
+var x19 = new Array[Int](100)
+for (x4 <- 0 until 100) {
+val x5 = x4 * 4
+var x11 = new Array[Int](x6)
+for (x7 <- 0 until x6) {
+val x8 = x3.apply(x7)
+val x9 = x8 * 5
+val x10 = x9 + x4
+x11(x7) = x10
+}
+val x12 = x11.length
+var x16 = new Array[Int](x12)
+for (x13 <- 0 until x12) {
+val x14 = x11.apply(x13)
+val x15 = x14 * 6
+x16(x13) = x15
+}
+val x17 = x16.apply(0)
+val x18 = x5 * x17
+x19(x4) = x18
+}
+val x20 = x19.length
+val x21 = println(x20)
+
+-- vertical transformation
+
+(VFT)  starting loop fusion of producer:
+      TP(Sym(3),SimpleLoop(Const(100),Sym(1),ArrayElem(Block(Sym(2)))))
+(VFT)  into consumer:
+      TP(Sym(27),SimpleLoop(Sym(6),Sym(23),ArrayElem(Block(Sym(26)))))
+(VFT)  original consumer:
+      TP(Sym(11),SimpleLoop(Sym(6),Sym(7),ArrayElem(Block(Sym(10)))))
+(VFT)  original producerStms:
+      TP(Sym(2),NumericPlus(Sym(1),Const(1)))
+
+(VFT)  reindexed producerStms (prodIndex: Sym(1) -> consumerIndex: Sym(23)):
+      TP(Sym(28),NumericPlus(Sym(23),Const(1)))
+
+error: exception during mirroring of SimpleLoop(Const(100),Sym(4),ArrayElem(Block(Sym(18)))): java.lang.RuntimeException: reflectBlock not supported by context-free transformers
+java.lang.RuntimeException: reflectBlock not supported by context-free transformers
+	at scala.sys.package$.error(package.scala:27)
+	at scala.virtualization.lms.internal.AbstractTransformer$class.reflectBlock(Transforming.scala:13)
+	at scala.virtualization.lms.internal.Transforming$SubstTransformer.reflectBlock(Transforming.scala:62)
+	at scala.virtualization.lms.epfl.test7.ArrayLoopFusionExtractors$$anonfun$mirror$1.apply(TestFusion3.scala:93)
+	at scala.virtualization.lms.epfl.test7.ArrayLoopFusionExtractors$$anonfun$mirror$1.apply(TestFusion3.scala:93)
+	at scala.virtualization.lms.internal.Expressions$class.reifySubGraph(Expressions.scala:125)
+	at scala.virtualization.lms.epfl.test7.TestFusion3$$anonfun$testFusionTransform09$1$$anon$9.reifySubGraph(TestFusion3.scala:544)
+	at scala.virtualization.lms.internal.Effects$class.reifyEffects(Effects.scala:502)
+	at scala.virtualization.lms.epfl.test7.TestFusion3$$anonfun$testFusionTransform09$1$$anon$9.reifyEffects(TestFusion3.scala:544)
+	at scala.virtualization.lms.epfl.test7.ArrayLoopFusionExtractors$class.mirror(TestFusion3.scala:93)
+	at scala.virtualization.lms.epfl.test7.TestFusion3$$anonfun$testFusionTransform09$1$$anon$9.mirror(TestFusion3.scala:544)
+	at scala.virtualization.lms.epfl.test7.VerticalFusionTransformer$class.mirrorAddGet(TestFusion3.scala:299)
+	at scala.virtualization.lms.epfl.test7.Runner$$anon$16.mirrorAddGet(TestFusion3.scala:130)
+	at scala.virtualization.lms.epfl.test7.VerticalFusionTransformer$$anonfun$9.apply(TestFusion3.scala:283)
+	at scala.virtualization.lms.epfl.test7.VerticalFusionTransformer$$anonfun$9.apply(TestFusion3.scala:283)
+	at scala.collection.TraversableLike$$anonfun$map$1.apply(TraversableLike.scala:237)
+	at scala.collection.TraversableLike$$anonfun$map$1.apply(TraversableLike.scala:237)
+	at scala.collection.LinearSeqOptimized$class.foreach(LinearSeqOptimized.scala:59)
+	at scala.collection.immutable.List.foreach(List.scala:76)
+	at scala.collection.TraversableLike$class.map(TraversableLike.scala:237)
+	at scala.collection.AbstractTraversable.map(Traversable.scala:112)
+	at scala.virtualization.lms.epfl.test7.VerticalFusionTransformer$class.fuseConsumerStm(TestFusion3.scala:283)
+	at scala.virtualization.lms.epfl.test7.Runner$$anon$16.fuseConsumerStm(TestFusion3.scala:130)
+	at scala.virtualization.lms.epfl.test7.VerticalFusionTransformer$$anonfun$transformStm$4$$anonfun$apply$mcV$sp$4.apply(TestFusion3.scala:219)
+	at scala.virtualization.lms.epfl.test7.VerticalFusionTransformer$$anonfun$transformStm$4$$anonfun$apply$mcV$sp$4.apply(TestFusion3.scala:219)
+	at scala.virtualization.lms.common.IfThenElse$class.__ifThenElse(IfThenElse.scala:14)
+	at scala.virtualization.lms.epfl.test7.TestFusion3$$anonfun$testFusionTransform09$1$$anon$9.__ifThenElse(TestFusion3.scala:544)
+	at scala.virtualization.lms.epfl.test7.VerticalFusionTransformer$$anonfun$transformStm$4.apply$mcV$sp(TestFusion3.scala:216)
+	at scala.virtualization.lms.epfl.test7.VerticalFusionTransformer$$anonfun$transformStm$4.apply(TestFusion3.scala:216)
+	at scala.virtualization.lms.epfl.test7.VerticalFusionTransformer$$anonfun$transformStm$4.apply(TestFusion3.scala:216)
+	at scala.virtualization.lms.common.IfThenElse$class.__ifThenElse(IfThenElse.scala:14)
+	at scala.virtualization.lms.epfl.test7.TestFusion3$$anonfun$testFusionTransform09$1$$anon$9.__ifThenElse(TestFusion3.scala:544)
+	at scala.virtualization.lms.epfl.test7.VerticalFusionTransformer$class.transformStm(TestFusion3.scala:214)
+	at scala.virtualization.lms.epfl.test7.Runner$$anon$16.transformStm(TestFusion3.scala:130)
+	at scala.virtualization.lms.common.ForwardTransformer$$anonfun$traverseStm$2.apply$mcV$sp(ForwardTransformer.scala:32)
+	at scala.virtualization.lms.common.ForwardTransformer$$anonfun$traverseStm$2.apply(ForwardTransformer.scala:31)
+	at scala.virtualization.lms.common.ForwardTransformer$$anonfun$traverseStm$2.apply(ForwardTransformer.scala:31)
+	at scala.virtualization.lms.common.IfThenElse$class.__ifThenElse(IfThenElse.scala:13)
+	at scala.virtualization.lms.epfl.test7.TestFusion3$$anonfun$testFusionTransform09$1$$anon$9.__ifThenElse(TestFusion3.scala:544)
+	at scala.virtualization.lms.common.ForwardTransformer$class.traverseStm(ForwardTransformer.scala:31)
+	at scala.virtualization.lms.epfl.test7.Runner$$anon$16.traverseStm(TestFusion3.scala:130)
+	at scala.virtualization.lms.internal.NestedBlockTraversal$$anonfun$traverseStmsInBlock$1.apply(BlockTraversal.scala:117)
+	at scala.virtualization.lms.internal.NestedBlockTraversal$$anonfun$traverseStmsInBlock$1.apply(BlockTraversal.scala:117)
+	at scala.collection.LinearSeqOptimized$class.foreach(LinearSeqOptimized.scala:59)
+	at scala.collection.immutable.List.foreach(List.scala:76)
+	at scala.virtualization.lms.internal.NestedBlockTraversal$class.traverseStmsInBlock(BlockTraversal.scala:117)
+	at scala.virtualization.lms.epfl.test7.Runner$$anon$16.traverseStmsInBlock(TestFusion3.scala:130)
+	at scala.virtualization.lms.internal.NestedBlockTraversal$$anonfun$traverseBlockFocused$1.apply(BlockTraversal.scala:112)
+	at scala.virtualization.lms.internal.NestedBlockTraversal$$anonfun$traverseBlockFocused$1.apply(BlockTraversal.scala:111)
+	at scala.virtualization.lms.internal.NestedGraphTraversal$$anonfun$focusExactScopeSubGraph$1.apply(Traversal.scala:149)
+	at scala.virtualization.lms.internal.NestedGraphTraversal$class.withInnerScope(Traversal.scala:55)
+	at scala.virtualization.lms.epfl.test7.Runner$$anon$16.withInnerScope(TestFusion3.scala:130)
+	at scala.virtualization.lms.internal.NestedGraphTraversal$class.focusExactScopeSubGraph(Traversal.scala:146)
+	at scala.virtualization.lms.epfl.test7.Runner$$anon$16.focusExactScopeSubGraph(TestFusion3.scala:130)
+	at scala.virtualization.lms.internal.NestedBlockTraversal$class.focusExactScopeFat(BlockTraversal.scala:62)
+	at scala.virtualization.lms.epfl.test7.Runner$$anon$16.focusExactScopeFat(TestFusion3.scala:130)
+	at scala.virtualization.lms.internal.NestedBlockTraversal$class.focusExactScope(BlockTraversal.scala:59)
+	at scala.virtualization.lms.epfl.test7.Runner$$anon$16.focusExactScope(TestFusion3.scala:130)
+	at scala.virtualization.lms.internal.NestedBlockTraversal$class.traverseBlockFocused(BlockTraversal.scala:111)
+	at scala.virtualization.lms.epfl.test7.Runner$$anon$16.traverseBlockFocused(TestFusion3.scala:130)
+	at scala.virtualization.lms.internal.NestedBlockTraversal$$anonfun$traverseBlock$1.apply$mcV$sp(BlockTraversal.scala:106)
+	at scala.virtualization.lms.internal.NestedBlockTraversal$$anonfun$traverseBlock$1.apply(BlockTraversal.scala:106)
+	at scala.virtualization.lms.internal.NestedBlockTraversal$$anonfun$traverseBlock$1.apply(BlockTraversal.scala:106)
+	at scala.virtualization.lms.internal.FatBlockTraversal$$anonfun$focusFatBlock$1.apply(FatTraversal.scala:17)
+	at scala.virtualization.lms.internal.NestedGraphTraversal$class.withInnerScope(Traversal.scala:55)
+	at scala.virtualization.lms.epfl.test7.Runner$$anon$16.withInnerScope(TestFusion3.scala:130)
+	at scala.virtualization.lms.internal.NestedGraphTraversal$class.focusSubGraph(Traversal.scala:75)
+	at scala.virtualization.lms.epfl.test7.Runner$$anon$16.focusSubGraph(TestFusion3.scala:130)
+	at scala.virtualization.lms.internal.NestedBlockTraversal$class.focusFatBlock(BlockTraversal.scala:55)
+	at scala.virtualization.lms.epfl.test7.Runner$$anon$16.scala$virtualization$lms$internal$FatBlockTraversal$$super$focusFatBlock(TestFusion3.scala:130)
+	at scala.virtualization.lms.internal.FatBlockTraversal$class.focusFatBlock(FatTraversal.scala:15)
+	at scala.virtualization.lms.epfl.test7.Runner$$anon$16.focusFatBlock(TestFusion3.scala:130)
+	at scala.virtualization.lms.internal.NestedBlockTraversal$class.focusBlock(BlockTraversal.scala:52)
+	at scala.virtualization.lms.epfl.test7.Runner$$anon$16.focusBlock(TestFusion3.scala:130)
+	at scala.virtualization.lms.internal.NestedBlockTraversal$class.traverseBlock(BlockTraversal.scala:105)
+	at scala.virtualization.lms.epfl.test7.Runner$$anon$16.traverseBlock(TestFusion3.scala:130)
+	at scala.virtualization.lms.epfl.test7.VerticalFusionTransformer$class.reflectBlock(TestFusion3.scala:194)
+	at scala.virtualization.lms.epfl.test7.Runner$$anon$16.reflectBlock(TestFusion3.scala:130)
+	at scala.virtualization.lms.epfl.test7.ArrayLoopFusionExtractors$$anonfun$mirror$1.apply(TestFusion3.scala:93)
+	at scala.virtualization.lms.epfl.test7.ArrayLoopFusionExtractors$$anonfun$mirror$1.apply(TestFusion3.scala:93)
+	at scala.virtualization.lms.internal.Expressions$class.reifySubGraph(Expressions.scala:125)
+	at scala.virtualization.lms.epfl.test7.TestFusion3$$anonfun$testFusionTransform09$1$$anon$9.reifySubGraph(TestFusion3.scala:544)
+	at scala.virtualization.lms.internal.Effects$class.reifyEffects(Effects.scala:502)
+	at scala.virtualization.lms.epfl.test7.TestFusion3$$anonfun$testFusionTransform09$1$$anon$9.reifyEffects(TestFusion3.scala:544)
+	at scala.virtualization.lms.epfl.test7.ArrayLoopFusionExtractors$class.mirror(TestFusion3.scala:93)
+	at scala.virtualization.lms.epfl.test7.TestFusion3$$anonfun$testFusionTransform09$1$$anon$9.mirror(TestFusion3.scala:544)
+	at scala.virtualization.lms.common.ForwardTransformer$class.self_mirror(ForwardTransformer.scala:66)
+	at scala.virtualization.lms.epfl.test7.Runner$$anon$16.self_mirror(TestFusion3.scala:130)
+	at scala.virtualization.lms.common.ForwardTransformer$class.transformStm(ForwardTransformer.scala:61)
+	at scala.virtualization.lms.epfl.test7.Runner$$anon$16.scala$virtualization$lms$epfl$test7$VerticalFusionTransformer$$super$transformStm(TestFusion3.scala:130)
+	at scala.virtualization.lms.epfl.test7.VerticalFusionTransformer$class.transformStm(TestFusion3.scala:229)
+	at scala.virtualization.lms.epfl.test7.Runner$$anon$16.transformStm(TestFusion3.scala:130)
+	at scala.virtualization.lms.common.ForwardTransformer$$anonfun$traverseStm$2.apply$mcV$sp(ForwardTransformer.scala:32)
+	at scala.virtualization.lms.common.ForwardTransformer$$anonfun$traverseStm$2.apply(ForwardTransformer.scala:31)
+	at scala.virtualization.lms.common.ForwardTransformer$$anonfun$traverseStm$2.apply(ForwardTransformer.scala:31)
+	at scala.virtualization.lms.common.IfThenElse$class.__ifThenElse(IfThenElse.scala:13)
+	at scala.virtualization.lms.epfl.test7.TestFusion3$$anonfun$testFusionTransform09$1$$anon$9.__ifThenElse(TestFusion3.scala:544)
+	at scala.virtualization.lms.common.ForwardTransformer$class.traverseStm(ForwardTransformer.scala:31)
+	at scala.virtualization.lms.epfl.test7.Runner$$anon$16.traverseStm(TestFusion3.scala:130)
+	at scala.virtualization.lms.internal.NestedBlockTraversal$$anonfun$traverseStmsInBlock$1.apply(BlockTraversal.scala:117)
+	at scala.virtualization.lms.internal.NestedBlockTraversal$$anonfun$traverseStmsInBlock$1.apply(BlockTraversal.scala:117)
+	at scala.collection.LinearSeqOptimized$class.foreach(LinearSeqOptimized.scala:59)
+	at scala.collection.immutable.List.foreach(List.scala:76)
+	at scala.virtualization.lms.internal.NestedBlockTraversal$class.traverseStmsInBlock(BlockTraversal.scala:117)
+	at scala.virtualization.lms.epfl.test7.Runner$$anon$16.traverseStmsInBlock(TestFusion3.scala:130)
+	at scala.virtualization.lms.internal.NestedBlockTraversal$$anonfun$traverseBlockFocused$1.apply(BlockTraversal.scala:112)
+	at scala.virtualization.lms.internal.NestedBlockTraversal$$anonfun$traverseBlockFocused$1.apply(BlockTraversal.scala:111)
+	at scala.virtualization.lms.internal.NestedGraphTraversal$$anonfun$focusExactScopeSubGraph$1.apply(Traversal.scala:149)
+	at scala.virtualization.lms.internal.NestedGraphTraversal$class.withInnerScope(Traversal.scala:55)
+	at scala.virtualization.lms.epfl.test7.Runner$$anon$16.withInnerScope(TestFusion3.scala:130)
+	at scala.virtualization.lms.internal.NestedGraphTraversal$class.focusExactScopeSubGraph(Traversal.scala:146)
+	at scala.virtualization.lms.epfl.test7.Runner$$anon$16.focusExactScopeSubGraph(TestFusion3.scala:130)
+	at scala.virtualization.lms.internal.NestedBlockTraversal$class.focusExactScopeFat(BlockTraversal.scala:62)
+	at scala.virtualization.lms.epfl.test7.Runner$$anon$16.focusExactScopeFat(TestFusion3.scala:130)
+	at scala.virtualization.lms.internal.NestedBlockTraversal$class.focusExactScope(BlockTraversal.scala:59)
+	at scala.virtualization.lms.epfl.test7.Runner$$anon$16.focusExactScope(TestFusion3.scala:130)
+	at scala.virtualization.lms.internal.NestedBlockTraversal$class.traverseBlockFocused(BlockTraversal.scala:111)
+	at scala.virtualization.lms.epfl.test7.Runner$$anon$16.traverseBlockFocused(TestFusion3.scala:130)
+	at scala.virtualization.lms.internal.NestedBlockTraversal$$anonfun$traverseBlock$1.apply$mcV$sp(BlockTraversal.scala:106)
+	at scala.virtualization.lms.internal.NestedBlockTraversal$$anonfun$traverseBlock$1.apply(BlockTraversal.scala:106)
+	at scala.virtualization.lms.internal.NestedBlockTraversal$$anonfun$traverseBlock$1.apply(BlockTraversal.scala:106)
+	at scala.virtualization.lms.internal.FatBlockTraversal$$anonfun$focusFatBlock$1.apply(FatTraversal.scala:17)
+	at scala.virtualization.lms.internal.NestedGraphTraversal$class.withInnerScope(Traversal.scala:55)
+	at scala.virtualization.lms.epfl.test7.Runner$$anon$16.withInnerScope(TestFusion3.scala:130)
+	at scala.virtualization.lms.internal.NestedGraphTraversal$class.focusSubGraph(Traversal.scala:75)
+	at scala.virtualization.lms.epfl.test7.Runner$$anon$16.focusSubGraph(TestFusion3.scala:130)
+	at scala.virtualization.lms.internal.NestedBlockTraversal$class.focusFatBlock(BlockTraversal.scala:55)
+	at scala.virtualization.lms.epfl.test7.Runner$$anon$16.scala$virtualization$lms$internal$FatBlockTraversal$$super$focusFatBlock(TestFusion3.scala:130)
+	at scala.virtualization.lms.internal.FatBlockTraversal$class.focusFatBlock(FatTraversal.scala:15)
+	at scala.virtualization.lms.epfl.test7.Runner$$anon$16.focusFatBlock(TestFusion3.scala:130)
+	at scala.virtualization.lms.internal.NestedBlockTraversal$class.focusBlock(BlockTraversal.scala:52)
+	at scala.virtualization.lms.epfl.test7.Runner$$anon$16.focusBlock(TestFusion3.scala:130)
+	at scala.virtualization.lms.internal.NestedBlockTraversal$class.traverseBlock(BlockTraversal.scala:105)
+	at scala.virtualization.lms.epfl.test7.Runner$$anon$16.traverseBlock(TestFusion3.scala:130)
+	at scala.virtualization.lms.epfl.test7.VerticalFusionTransformer$class.reflectBlock(TestFusion3.scala:194)
+	at scala.virtualization.lms.epfl.test7.Runner$$anon$16.reflectBlock(TestFusion3.scala:130)
+	at scala.virtualization.lms.common.ForwardTransformer$$anonfun$transformBlock$1.apply(ForwardTransformer.scala:13)
+	at scala.virtualization.lms.common.ForwardTransformer$$anonfun$transformBlock$1.apply(ForwardTransformer.scala:13)
+	at scala.virtualization.lms.internal.Expressions$class.reifySubGraph(Expressions.scala:125)
+	at scala.virtualization.lms.epfl.test7.TestFusion3$$anonfun$testFusionTransform09$1$$anon$9.reifySubGraph(TestFusion3.scala:544)
+	at scala.virtualization.lms.internal.Effects$class.reifyEffects(Effects.scala:502)
+	at scala.virtualization.lms.epfl.test7.TestFusion3$$anonfun$testFusionTransform09$1$$anon$9.reifyEffects(TestFusion3.scala:544)
+	at scala.virtualization.lms.common.ForwardTransformer$class.transformBlock(ForwardTransformer.scala:12)
+	at scala.virtualization.lms.epfl.test7.Runner$$anon$16.transformBlock(TestFusion3.scala:130)
+	at scala.virtualization.lms.epfl.test7.Runner$class.run(TestFusion3.scala:140)
+	at scala.virtualization.lms.epfl.test7.Impl$$anon$17.run(TestFusion3.scala:106)
+	at scala.virtualization.lms.epfl.test7.Impl$class.$init$(TestFusion3.scala:107)
+	at scala.virtualization.lms.epfl.test7.TestFusion3$$anonfun$testFusionTransform09$1$$anon$9.<init>(TestFusion3.scala:544)
+	at scala.virtualization.lms.epfl.test7.TestFusion3$$anonfun$testFusionTransform09$1.apply$mcV$sp(TestFusion3.scala:544)
+	at scala.virtualization.lms.epfl.test7.TestFusion3$$anonfun$testFusionTransform09$1.apply(TestFusion3.scala:522)
+	at scala.virtualization.lms.epfl.test7.TestFusion3$$anonfun$testFusionTransform09$1.apply(TestFusion3.scala:522)
+	at scala.util.DynamicVariable.withValue(DynamicVariable.scala:57)
+	at scala.Console$.withErr(Console.scala:148)
+	at scala.virtualization.lms.epfl.FileDiffSuite$$anonfun$withOutput$1.apply$mcV$sp(FileDiffSuite.scala:26)
+	at scala.virtualization.lms.epfl.FileDiffSuite$$anonfun$withOutput$1.apply(FileDiffSuite.scala:26)
+	at scala.virtualization.lms.epfl.FileDiffSuite$$anonfun$withOutput$1.apply(FileDiffSuite.scala:26)
+	at scala.util.DynamicVariable.withValue(DynamicVariable.scala:57)
+	at scala.Console$.withOut(Console.scala:107)
+	at scala.virtualization.lms.epfl.FileDiffSuite$class.withOutput(FileDiffSuite.scala:26)
+	at scala.virtualization.lms.epfl.test7.TestFusion3.withOutput(TestFusion3.scala:370)
+	at scala.virtualization.lms.epfl.FileDiffSuite$class.withOutFile(FileDiffSuite.scala:13)
+	at scala.virtualization.lms.epfl.test7.TestFusion3.withOutFile(TestFusion3.scala:370)
+	at scala.virtualization.lms.epfl.FileDiffSuite$class.withOutFileChecked(FileDiffSuite.scala:47)
+	at scala.virtualization.lms.epfl.test7.TestFusion3.withOutFileChecked(TestFusion3.scala:370)
+	at scala.virtualization.lms.epfl.test7.TestFusion3.testFusionTransform09(TestFusion3.scala:522)
+	at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:57)
+	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.lang.reflect.Method.invoke(Method.java:601)
+	at org.scalatest.Suite$$anon$1.apply(Suite.scala:2062)
+	at org.scalatest.Suite$class.withFixture(Suite.scala:1969)
+	at scala.virtualization.lms.epfl.test7.TestFusion3.withFixture(TestFusion3.scala:370)
+	at org.scalatest.Suite$class.runTest(Suite.scala:2059)
+	at scala.virtualization.lms.epfl.test7.TestFusion3.runTest(TestFusion3.scala:370)
+	at org.scalatest.Suite$$anonfun$runTests$2.apply(Suite.scala:2205)
+	at org.scalatest.Suite$$anonfun$runTests$2.apply(Suite.scala:2199)
+	at scala.collection.LinearSeqOptimized$class.foreach(LinearSeqOptimized.scala:59)
+	at scala.collection.immutable.List.foreach(List.scala:76)
+	at org.scalatest.Suite$class.runTests(Suite.scala:2199)
+	at scala.virtualization.lms.epfl.test7.TestFusion3.runTests(TestFusion3.scala:370)
+	at org.scalatest.Suite$class.run(Suite.scala:2292)
+	at scala.virtualization.lms.epfl.test7.TestFusion3.run(TestFusion3.scala:370)
+	at org.scalatest.tools.ScalaTestFramework$ScalaTestRunner.run(ScalaTestFramework.scala:170)
+	at sbt.TestRunner.delegateRun(TestFramework.scala:57)
+	at sbt.TestRunner.run(TestFramework.scala:51)
+	at sbt.TestRunner.runTest$1(TestFramework.scala:71)
+	at sbt.TestRunner.run(TestFramework.scala:80)
+	at sbt.TestFramework$$anonfun$6$$anonfun$apply$8$$anonfun$7$$anonfun$apply$9.apply(TestFramework.scala:178)
+	at sbt.TestFramework$$anonfun$6$$anonfun$apply$8$$anonfun$7$$anonfun$apply$9.apply(TestFramework.scala:178)
+	at sbt.TestFramework$.sbt$TestFramework$$withContextLoader(TestFramework.scala:190)
+	at sbt.TestFramework$$anonfun$6$$anonfun$apply$8$$anonfun$7.apply(TestFramework.scala:178)
+	at sbt.TestFramework$$anonfun$6$$anonfun$apply$8$$anonfun$7.apply(TestFramework.scala:178)
+	at sbt.Tests$$anonfun$makeSerial$1$$anonfun$apply$8.apply(Tests.scala:121)
+	at sbt.Tests$$anonfun$makeSerial$1$$anonfun$apply$8.apply(Tests.scala:121)
+	at scala.collection.TraversableLike$$anonfun$map$1.apply(TraversableLike.scala:233)
+	at scala.collection.TraversableLike$$anonfun$map$1.apply(TraversableLike.scala:233)
+	at scala.collection.LinearSeqOptimized$class.foreach(LinearSeqOptimized.scala:59)
+	at scala.collection.immutable.List.foreach(List.scala:76)
+	at scala.collection.TraversableLike$class.map(TraversableLike.scala:233)
+	at scala.collection.immutable.List.map(List.scala:76)
+	at sbt.Tests$$anonfun$makeSerial$1.apply(Tests.scala:121)
+	at sbt.Tests$$anonfun$makeSerial$1.apply(Tests.scala:121)
+	at sbt.std.Transform$$anon$3$$anonfun$apply$2.apply(System.scala:47)
+	at sbt.std.Transform$$anon$3$$anonfun$apply$2.apply(System.scala:47)
+	at sbt.std.Transform$$anon$5.work(System.scala:71)
+	at sbt.Execute$$anonfun$submit$1$$anonfun$apply$1.apply(Execute.scala:232)
+	at sbt.Execute$$anonfun$submit$1$$anonfun$apply$1.apply(Execute.scala:232)
+	at sbt.ErrorHandling$.wideConvert(ErrorHandling.scala:18)
+	at sbt.Execute.work(Execute.scala:238)
+	at sbt.Execute$$anonfun$submit$1.apply(Execute.scala:232)
+	at sbt.Execute$$anonfun$submit$1.apply(Execute.scala:232)
+	at sbt.ConcurrentRestrictions$$anon$4$$anonfun$1.apply(ConcurrentRestrictions.scala:159)
+	at sbt.CompletionService$$anon$2.call(CompletionService.scala:30)
+	at java.util.concurrent.FutureTask$Sync.innerRun(FutureTask.java:334)
+	at java.util.concurrent.FutureTask.run(FutureTask.java:166)
+	at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:471)
+	at java.util.concurrent.FutureTask$Sync.innerRun(FutureTask.java:334)
+	at java.util.concurrent.FutureTask.run(FutureTask.java:166)
+	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1110)
+	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:603)
+	at java.lang.Thread.run(Thread.java:722)
+
+-- after vertical transformation
+var x3 = new Array[Int](100)
+for (x1 <- 0 until 100) {
+val x2 = x1 + 1
+x3(x1) = x2
+}
+val x6 = x3.length
+var x19 = new Array[Int](100)
+for (x4 <- 0 until 100) {
+val x5 = x4 * 4
+var x11 = new Array[Int](x6)
+for (x7 <- 0 until x6) {
+val x8 = x3.apply(x7)
+val x9 = x8 * 5
+val x10 = x9 + x4
+x11(x7) = x10
+}
+val x12 = x11.length
+var x16 = new Array[Int](x12)
+for (x13 <- 0 until x12) {
+val x14 = x11.apply(x13)
+val x15 = x14 * 6
+x16(x13) = x15
+}
+val x17 = x16.apply(0)
+val x18 = x5 * x17
+x19(x4) = x18
+}
+val x20 = x19.length
+val x31 = println(x20)
+
+-- horizontal transformation
+(HFT)  Recording new loop (prev. Sym(3)): (Const(100),(Sym(3),Sym(1),None))
+(HFT)  Loop Sym(19) not fused with Sym(3) because it depends on it
+(HFT)  Recording new loop (prev. Sym(11)): (Sym(6),(Sym(11),Sym(7),None))
+(HFT)  Recording new loop (prev. Sym(16)): (Sym(12),(Sym(16),Sym(13),None))
+
+-- after horizontal transformation
+var x3 = new Array[Int](100)
+for (x1 <- 0 until 100) {
+val x2 = x1 + 1
+x3(x1) = x2
+}
+val x6 = x3.length
+var x19 = new Array[Int](100)
+for (x4 <- 0 until 100) {
+val x5 = x4 * 4
+var x11 = new Array[Int](x6)
+for (x7 <- 0 until x6) {
+val x8 = x3.apply(x7)
+val x9 = x8 * 5
+val x10 = x9 + x4
+x11(x7) = x10
+}
+val x12 = x11.length
+var x16 = new Array[Int](x12)
+for (x13 <- 0 until x12) {
+val x14 = x11.apply(x13)
+val x15 = x14 * 6
+x16(x13) = x15
+}
+val x17 = x16.apply(0)
+val x18 = x5 * x17
+x19(x4) = x18
+}
+val x20 = x19.length
+val x31 = println(x20)
+-- done
