@@ -34,67 +34,53 @@ val x13 = x12.length
 val x14 = println(x13)
 
 -- vertical transformation
+nonflat: List(List((Sym(5),Some(TP(Sym(5),SimpleLoop(Const(100),Sym(1),ArrayElem(Block(Sym(4)))))))), List((Sym(4),Some(TP(Sym(4),NumericTimes(Sym(1),Sym(3)))))), List((Sym(3),Some(TP(Sym(3),NumericTimes(Sym(2),Sym(1)))))), List((Sym(2),Some(TP(Sym(2),NumericPlus(Sym(1),Const(1)))))), List((Sym(1),None)))
++++deps of Sym(5): List()
+(VFT)  Loop Sym(5) is consumer of 
 
-(VFT)  starting loop fusion of producer:
-      TP(Sym(5),SimpleLoop(Const(100),Sym(1),ArrayElem(Block(Sym(4)))))
-(VFT)  into consumer:
-      TP(Sym(19),SimpleLoop(Sym(6),Sym(16),ArrayIfElem(Sym(10),Block(Sym(18)))))
-(VFT)  original consumer:
-      TP(Sym(12),SimpleLoop(Sym(6),Sym(7),ArrayIfElem(Sym(10),Block(Sym(11)))))
-(VFT)  original producerStms:
-      TP(Sym(2),NumericPlus(Sym(1),Const(1)))
-      TP(Sym(3),NumericTimes(Sym(2),Sym(1)))
-      TP(Sym(4),NumericTimes(Sym(1),Sym(3)))
 
-(VFT)  reindexed producerStms (prodIndex: Sym(1) -> consumerIndex: Sym(16)):
-      TP(Sym(22),NumericPlus(Sym(16),Const(1)))
-      TP(Sym(23),NumericTimes(Sym(22),Sym(16)))
-      TP(Sym(24),NumericTimes(Sym(16),Sym(23)))
-
-(VFT)  original consuming:
-      TP(Sym(18),NumericPlus(Sym(17),Const(2)))
-      TP(Sym(19),SimpleLoop(Sym(6),Sym(16),ArrayIfElem(Sym(10),Block(Sym(18)))))
-      TP(Sym(20),OrderingGT(Sym(17),Const(50)))
-      TP(Sym(21),BooleanNegate(Sym(20)))
-      TP(Sym(17),ArrayIndex(Sym(5),Sym(16)))
-
-(VFT)  fused consuming (SimpleIndex: List(Sym(17)) -> collectSym: Sym(24)):
-      TP(Sym(25),NumericPlus(Sym(24),Const(2)))
-      TP(Sym(26),SimpleLoop(Sym(6),Sym(16),ArrayIfElem(Sym(21),Block(Sym(25)))))
-      TP(Sym(27),OrderingGT(Sym(24),Const(50)))
-      TP(Sym(28),BooleanNegate(Sym(27)))
-      TP(Sym(17),ArrayIndex(Sym(5),Sym(16)))
-
-(VFT)  fusion successful! Fused consumer loop: TP(Sym(29),SimpleLoop(Const(100),Sym(16),ArrayIfElem(Sym(28),Block(Sym(25)))))
+nonflat: List(List((Sym(12),Some(TP(Sym(12),SimpleLoop(Sym(6),Sym(7),ArrayIfElem(Sym(10),Block(Sym(11)))))))), List((Sym(11),Some(TP(Sym(11),NumericPlus(Sym(8),Const(2)))))), List((Sym(10),Some(TP(Sym(10),BooleanNegate(Sym(9)))))), List((Sym(9),Some(TP(Sym(9),OrderingGT(Sym(8),Const(50)))))), List((Sym(8),Some(TP(Sym(8),ArrayIndex(Sym(5),Sym(7)))))), List((Sym(7),None)), List((Sym(6),Some(TP(Sym(6),ArrayLength(Sym(5)))))), List((Sym(5),Some(TP(Sym(5),SimpleLoop(Const(100),Sym(1),ArrayElem(Block(Sym(4)))))))))
++++deps of Sym(12): List(Sym(5))
 
 -- after vertical transformation
-var x29 = new ArrayBuilder[Int]
-for (x16 <- 0 until 100) {
-val x22 = x16 + 1
-val x23 = x22 * x16
-val x24 = x16 * x23
-val x25 = x24 + 2
-val x27 = x24 > 50
-val x28 = !x27
-if (x28) x29 += x25
+var x5 = new Array[Int](100)
+for (x1 <- 0 until 100) {
+val x2 = x1 + 1
+val x3 = x2 * x1
+val x4 = x1 * x3
+x5(x1) = x4
 }
-val x30 = x29.length
-val x31 = println(x30)
+var x16 = new ArrayBuilder[Int]
+for (x7 <- 0 until 100) {
+val x8 = x5.apply(x7)
+val x9 = x8 > 50
+val x10 = !x9
+val x11 = x8 + 2
+if (x10) x16 += x11
+}
+val x17 = x16.length
+val x18 = println(x17)
 
 -- horizontal transformation
-(HFT)  Recording new loop (prev. Sym(29)): (Const(100),(Sym(29),Sym(16),None))
+(HFT)  Recording new loop (prev. Sym(5)): (Const(100),(Sym(5),Sym(1),None))
+(HFT)  Loop Sym(16) not fused with Sym(5) because it depends on it
 
 -- after horizontal transformation
-var x29 = new ArrayBuilder[Int]
-for (x16 <- 0 until 100) {
-val x22 = x16 + 1
-val x23 = x22 * x16
-val x24 = x16 * x23
-val x25 = x24 + 2
-val x27 = x24 > 50
-val x28 = !x27
-if (x28) x29 += x25
+var x5 = new Array[Int](100)
+for (x1 <- 0 until 100) {
+val x2 = x1 + 1
+val x3 = x2 * x1
+val x4 = x1 * x3
+x5(x1) = x4
 }
-val x30 = x29.length
-val x31 = println(x30)
+var x16 = new ArrayBuilder[Int]
+for (x7 <- 0 until 100) {
+val x8 = x5.apply(x7)
+val x9 = x8 > 50
+val x10 = !x9
+val x11 = x8 + 2
+if (x10) x16 += x11
+}
+val x17 = x16.length
+val x18 = println(x17)
 -- done

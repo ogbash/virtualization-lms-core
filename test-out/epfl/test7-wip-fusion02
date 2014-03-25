@@ -36,52 +36,15 @@ val x14 = println(x13)
 val x15 = println(x6)
 
 -- vertical transformation
+nonflat: List(List((Sym(5),Some(TP(Sym(5),SimpleLoop(Const(100),Sym(1),ArrayElem(Block(Sym(4)))))))), List((Sym(4),Some(TP(Sym(4),NumericTimes(Sym(1),Sym(3)))))), List((Sym(3),Some(TP(Sym(3),NumericTimes(Sym(2),Sym(1)))))), List((Sym(2),Some(TP(Sym(2),NumericPlus(Sym(1),Const(1)))))), List((Sym(1),None)))
++++deps of Sym(5): List()
+(VFT)  Loop Sym(5) is consumer of 
 
-(VFT)  starting loop fusion of producer:
-      TP(Sym(5),SimpleLoop(Const(100),Sym(1),ArrayElem(Block(Sym(4)))))
-(VFT)  into consumer:
-      TP(Sym(20),SimpleLoop(Sym(6),Sym(17),ArrayIfElem(Sym(10),Block(Sym(19)))))
-(VFT)  original consumer:
-      TP(Sym(12),SimpleLoop(Sym(6),Sym(7),ArrayIfElem(Sym(10),Block(Sym(11)))))
-(VFT)  original producerStms:
-      TP(Sym(2),NumericPlus(Sym(1),Const(1)))
-      TP(Sym(3),NumericTimes(Sym(2),Sym(1)))
-      TP(Sym(4),NumericTimes(Sym(1),Sym(3)))
 
-(VFT)  reindexed producerStms (prodIndex: Sym(1) -> consumerIndex: Sym(17)):
-      TP(Sym(23),NumericPlus(Sym(17),Const(1)))
-      TP(Sym(24),NumericTimes(Sym(23),Sym(17)))
-      TP(Sym(25),NumericTimes(Sym(17),Sym(24)))
-
-(VFT)  original consuming:
-      TP(Sym(19),NumericPlus(Sym(18),Const(2)))
-      TP(Sym(20),SimpleLoop(Sym(6),Sym(17),ArrayIfElem(Sym(10),Block(Sym(19)))))
-      TP(Sym(21),OrderingGT(Sym(18),Const(50)))
-      TP(Sym(22),BooleanNegate(Sym(21)))
-      TP(Sym(18),ArrayIndex(Sym(5),Sym(17)))
-
-(VFT)  fused consuming (SimpleIndex: List(Sym(18)) -> collectSym: Sym(25)):
-      TP(Sym(26),NumericPlus(Sym(25),Const(2)))
-      TP(Sym(27),SimpleLoop(Sym(6),Sym(17),ArrayIfElem(Sym(22),Block(Sym(26)))))
-      TP(Sym(28),OrderingGT(Sym(25),Const(50)))
-      TP(Sym(29),BooleanNegate(Sym(28)))
-      TP(Sym(18),ArrayIndex(Sym(5),Sym(17)))
-
-(VFT)  fusion successful! Fused consumer loop: TP(Sym(30),SimpleLoop(Const(100),Sym(17),ArrayIfElem(Sym(29),Block(Sym(26)))))
+nonflat: List(List((Sym(12),Some(TP(Sym(12),SimpleLoop(Sym(6),Sym(7),ArrayIfElem(Sym(10),Block(Sym(11)))))))), List((Sym(11),Some(TP(Sym(11),NumericPlus(Sym(8),Const(2)))))), List((Sym(10),Some(TP(Sym(10),BooleanNegate(Sym(9)))))), List((Sym(9),Some(TP(Sym(9),OrderingGT(Sym(8),Const(50)))))), List((Sym(8),Some(TP(Sym(8),ArrayIndex(Sym(5),Sym(7)))))), List((Sym(7),None)), List((Sym(6),Some(TP(Sym(6),ArrayLength(Sym(5)))))), List((Sym(5),Some(TP(Sym(5),SimpleLoop(Const(100),Sym(1),ArrayElem(Block(Sym(4)))))))))
++++deps of Sym(12): List(Sym(5))
 
 -- after vertical transformation
-var x30 = new ArrayBuilder[Int]
-for (x17 <- 0 until 100) {
-val x23 = x17 + 1
-val x24 = x23 * x17
-val x25 = x17 * x24
-val x26 = x25 + 2
-val x28 = x25 > 50
-val x29 = !x28
-if (x29) x30 += x26
-}
-val x31 = x30.length
-val x32 = println(x31)
 var x5 = new Array[Int](100)
 for (x1 <- 0 until 100) {
 val x2 = x1 + 1
@@ -89,33 +52,39 @@ val x3 = x2 * x1
 val x4 = x1 * x3
 x5(x1) = x4
 }
-val x6 = x5.length
-val x33 = println(x6)
+var x17 = new ArrayBuilder[Int]
+for (x7 <- 0 until 100) {
+val x8 = x5.apply(x7)
+val x9 = x8 > 50
+val x10 = !x9
+val x11 = x8 + 2
+if (x10) x17 += x11
+}
+val x18 = x17.length
+val x19 = println(x18)
+val x20 = println(100)
 
 -- horizontal transformation
-(HFT)  Recording new loop (prev. Sym(30)): (Const(100),(Sym(30),Sym(17),None))
-(HFT)  Loop Sym(5) fused with Sym(30), common index: Sym(17)
+(HFT)  Recording new loop (prev. Sym(5)): (Const(100),(Sym(5),Sym(1),None))
+(HFT)  Loop Sym(17) not fused with Sym(5) because it depends on it
 
 -- after horizontal transformation
-var x30 = new ArrayBuilder[Int]
-for (x17 <- 0 until 100) {
-val x23 = x17 + 1
-val x24 = x23 * x17
-val x25 = x17 * x24
-val x26 = x25 + 2
-val x28 = x25 > 50
-val x29 = !x28
-if (x29) x30 += x26
+var x5 = new Array[Int](100)
+for (x1 <- 0 until 100) {
+val x2 = x1 + 1
+val x3 = x2 * x1
+val x4 = x1 * x3
+x5(x1) = x4
 }
-val x31 = x30.length
-val x32 = println(x31)
-var x35 = new Array[Int](100)
-for (x17 <- 0 until 100) {
-val x23 = x17 + 1
-val x24 = x23 * x17
-val x25 = x17 * x24
-x35(x17) = x25
+var x17 = new ArrayBuilder[Int]
+for (x7 <- 0 until 100) {
+val x8 = x5.apply(x7)
+val x9 = x8 > 50
+val x10 = !x9
+val x11 = x8 + 2
+if (x10) x17 += x11
 }
-val x36 = x35.length
-val x37 = println(x36)
+val x18 = x17.length
+val x19 = println(x18)
+val x20 = println(100)
 -- done
