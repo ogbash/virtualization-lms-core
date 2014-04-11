@@ -159,11 +159,13 @@ trait CGenWhile extends CGenEffect with BaseGenWhile {
   override def emitNode(sym: Sym[Any], rhs: Def[Any]) = {
     rhs match {
       case While(c,b) =>
+        // Emit while loop
+        stream.print("while (true) {\n")
         // calculate condition
         emitBlock(c)
         stream.println("bool cond_%s = %s;".format(quote(sym),quote(getBlockResult(c))))
-        // Emit while loop
-        stream.print("while (cond_%s) {".format(quote(sym)))
+        stream.println("if (!cond_%s) break;".format(quote(sym)))
+      //main block
         emitBlock(b)
         stream.println("}")
       case _ => super.emitNode(sym, rhs)
